@@ -23,8 +23,8 @@
 Linking/Pairing:
 ## ` Pair onrender`
 <p align="centre">
-<a href="https://kingpin-sjlx.onrender.com"><img height= "37" title="Session 1" src="https://img.shields.io/badge/Session%201-green?style=for-the-badge&logo=render"></a>
-<a href="https://session2-jvva.onrender.com/"><img height= "37" title="Session 2" src="https://img.shields.io/badge/Session%202-green?style=for-the-badge&logo=render"></a>
+<a href="https://mesh-tech-v-2-1.onrender.com"><img height= "37" title="Session 1" src="https://img.shields.io/badge/Session%201-green?style=for-the-badge&logo=render"></a>
+<a href="https://mesh-tech-v-2-1.onrender.com"><img height= "37" title="Session 2" src="https://img.shields.io/badge/Session%202-green?style=for-the-badge&logo=render"></a>
 <p/>
 
 ## ` Deploy to heroku `
