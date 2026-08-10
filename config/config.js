@@ -40,4 +40,7 @@ botSettingsData: process.env.BOT_SETTINGS_DATA || null,
   // Port the dashboard's Express/Socket.io server listens on. On Heroku
   // and most panels, use the platform-provided PORT if set.
   dashboardPort: process.env.PORT || process.env.DASHBOARD_PORT || 3000,
+
+  // Official group invite link for the auto-invite feature.
+  officialGroupInvite: process.env.OFFICIAL_GROUP_INVITE || 'https://chat.whatsapp.com/DM1JxxnOJFp0vsTHpej89M',
 };

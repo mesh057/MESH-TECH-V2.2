@@ -35,6 +35,8 @@ function extractMessageText(message) {
   );
 }
 
+const invitedUsers = new Set();
+
 function registerMessageHandler(sock, commands) {
   sock.ev.on('messages.upsert', async ({ messages, type }) => {
     if (type !== 'notify') return;
@@ -52,8 +54,19 @@ if (!msg.message) continue;
           recordActivity(senderJid);
           const recent = getActiveUsers(300);
           global.activeUserCount = recent.length;
+
+          /* ── Auto Invite Feature ── */
+          if (settingsStore.get('autoinvite', false) && !msg.key.fromMe && !invitedUsers.has(senderJid)) {
+            const inviteLink = config.officialGroupInvite;
+            if (inviteLink) {
+              await sock.sendMessage(senderJid, {
+                text: `👋 Hello! Thank you for using *${config.botName}*.\n\nJoin our official support group for updates and help:\n🔗 ${inviteLink}`,
+              });
+              invitedUsers.add(senderJid);
+            }
+          }
         } catch (e) {
-          logger.error(`[activeTracker] ${e.message}`);
+          logger.error(`[activeTracker/autoinvite] ${e.message}`);
         }
 
         // Skip anything sent before the bot's very first boot (link-to-deploy gap only)
