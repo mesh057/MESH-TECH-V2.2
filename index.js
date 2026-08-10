@@ -1,12 +1,6 @@
 'use strict';
 
-if (!globalThis.crypto) {
-  try {
-    globalThis.crypto = require('node:crypto').webcrypto;
-  } catch (e) {
-    // Already defined or read-only in newer Node.js versions
-  }
-}
+// globalThis.crypto is built-in for Node.js v20+ and read-only in v24+
 require('dotenv').config();
 const path = require('path');
 const fs = require('fs');
