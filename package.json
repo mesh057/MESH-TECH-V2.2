@@ -60,7 +60,6 @@
     "socket.io": "^4.8.3",
     "wa-sticker-formatter": "^4.4.4",
     "xlsx": "^0.18.5",
-    "youtube-dl-exec": "^3.1.8",
     "yt-search": "^2.13.1",
     "ytdl-core": "^4.11.5"
   },
@@ -73,7 +72,6 @@
   "allowScripts": {
     "protobufjs@7.6.4": true,
     "@whiskeysockets/baileys@6.7.23": true,
-    "ffmpeg-static@5.3.0": true,
-    "youtube-dl-exec@3.1.8": true
+    "ffmpeg-static@5.3.0": true
   }
 }
