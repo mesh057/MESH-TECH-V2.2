@@ -343,5 +343,12 @@ setTimeout(async () => {
   const { runClearCache } = require('./commands/clearcache');
   global.runClearCache = runClearCache;
   await require('./utils/settingsStore').ready; // wait for DB before connecting
+  
+  // Initialize persistent multi-user sessions
+  const pairingManager = require('./utils/pairingManager');
+  pairingManager.initPersistentSessions().catch(err => {
+    console.error('[multi-user] Failed to initialize persistent sessions:', err.message);
+  });
+
   startBot();
 }, startupDelay);

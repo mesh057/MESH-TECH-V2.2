@@ -11,6 +11,7 @@ const logger = require('./logger');
 
 const PAIRING_TIMEOUT_MS = 3 * 60 * 1000; // 3 minutes
 const sessions = new Map();
+const activeBots = new Map(); // Track connected bot instances
 
 /**
  * Normalizes a phone number to digits only.
@@ -106,17 +107,41 @@ async function startPairing(phoneNumber) {
 
       if (connection === 'open') {
         try {
-          const credsPath = path.join(tempAuthFolder, 'creds.json');
-          const credsBuffer = fs.readFileSync(credsPath);
-          session.sessionId = `MESH-TECH-MD:~${credsBuffer.toString('base64')}`;
-          session.status = 'success';
-          logger.info(`[pairingManager] Successfully paired ${number}`);
+          // Instead of a temporary session, move this to a persistent one
+          const persistentAuthFolder = path.join(__dirname, '../sessions', number);
+          if (!fs.existsSync(persistentAuthFolder)) {
+            fs.mkdirSync(persistentAuthFolder, { recursive: true });
+          }
           
-          // Keep it for a bit so the UI can read the success state, then cleanup
-          setTimeout(() => cleanup(number), 30000);
+          // Move credentials from temp to persistent
+          const files = fs.readdirSync(tempAuthFolder);
+          for (const file of files) {
+            fs.copyFileSync(path.join(tempAuthFolder, file), path.join(persistentAuthFolder, file));
+          }
+
+          session.status = 'success';
+          logger.info(`[pairingManager] Successfully paired ${number}. Bot is now persistent.`);
+          
+          // Register this bot instance globally if needed, or it will be picked up on restart
+          activeBots.set(number, sock);
+          
+          // Initialize bot features for this new socket
+          const { loadCommands } = require('./commandLoader');
+          const { registerMessageHandler } = require('../events/messages');
+          const commands = loadCommands(path.join(__dirname, '../commands'));
+          registerMessageHandler(sock, commands);
+
+          // Keep session object for UI polling then cleanup
+          setTimeout(() => {
+            if (sessions.has(number)) {
+              const s = sessions.get(number);
+              clearTimeout(s.timeoutHandle);
+              sessions.delete(number);
+            }
+          }, 30000);
         } catch (err) {
           session.status = 'error';
-          session.error = 'Linked, but failed to generate session string.';
+          session.error = 'Linked, but failed to persist session: ' + err.message;
         }
       }
 
@@ -166,10 +191,56 @@ async function cleanup(phoneNumber) {
 }
 
 /**
- * Returns count of active pairing sessions.
+ * Returns count of active pairing sessions and connected bots.
  */
 function getActiveCount() {
-  return sessions.size;
+  return sessions.size + activeBots.size;
+}
+
+/**
+ * Initializes all saved sessions on startup.
+ */
+async function initPersistentSessions() {
+  const sessionsDir = path.join(__dirname, '../sessions');
+  if (!fs.existsSync(sessionsDir)) return;
+
+  const folders = fs.readdirSync(sessionsDir);
+  for (const number of folders) {
+    try {
+      const authFolder = path.join(sessionsDir, number);
+      if (!fs.statSync(authFolder).isDirectory()) continue;
+
+      const { state, saveCreds } = await useMultiFileAuthState(authFolder);
+      const { version } = await fetchLatestBaileysVersion();
+
+      const sock = makeWASocket({
+        version,
+        auth: state,
+        browser: ['Ubuntu', 'Chrome', '120.0.6099.130'],
+        logger: logger.child ? logger.child({ module: `baileys-${number}` }) : logger,
+      });
+
+      sock.ev.on('creds.update', saveCreds);
+      
+      sock.ev.on('connection.update', (update) => {
+        const { connection } = update;
+        if (connection === 'open') {
+          logger.info(`[pairingManager] Persistent bot ${number} connected.`);
+          activeBots.set(number, sock);
+          
+          const { loadCommands } = require('./commandLoader');
+          const { registerMessageHandler } = require('../events/messages');
+          const commands = loadCommands(path.join(__dirname, '../commands'));
+          registerMessageHandler(sock, commands);
+        }
+        if (connection === 'close') {
+          activeBots.delete(number);
+        }
+      });
+    } catch (err) {
+      logger.error(`[pairingManager] Failed to load persistent session ${number}: ${err.message}`);
+    }
+  }
 }
 
 module.exports = {
@@ -178,4 +249,5 @@ module.exports = {
   cleanup,
   getActiveCount,
   normalizePhoneNumber,
+  initPersistentSessions,
 };
