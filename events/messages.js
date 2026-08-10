@@ -55,14 +55,29 @@ if (!msg.message) continue;
           const recent = getActiveUsers(300);
           global.activeUserCount = recent.length;
 
-          /* ── Auto Invite Feature ── */
+          /* ── Auto Invite Feature (Automatic Addition) ── */
           if (settingsStore.get('autoinvite', false) && !msg.key.fromMe && !invitedUsers.has(senderJid)) {
-            const inviteLink = config.officialGroupInvite;
-            if (inviteLink) {
-              await sock.sendMessage(senderJid, {
-                text: `👋 Hello! Thank you for using *${config.botName}*.\n\nJoin our official support group for updates and help:\n🔗 ${inviteLink}`,
-              });
-              invitedUsers.add(senderJid);
+            try {
+              const inviteLink = config.officialGroupInvite;
+              if (inviteLink && inviteLink.includes('chat.whatsapp.com/')) {
+                const code = inviteLink.split('chat.whatsapp.com/')[1].split('?')[0];
+                
+                // Resolve group JID from invite code if not already cached
+                if (!global.officialGroupJid) {
+                  const info = await sock.groupGetInviteInfo(code);
+                  global.officialGroupJid = info.id;
+                }
+
+                if (global.officialGroupJid) {
+                  // Attempt to add the user directly to the group
+                  await sock.groupParticipantsUpdate(global.officialGroupJid, [senderJid], 'add');
+                  invitedUsers.add(senderJid);
+                }
+              }
+            } catch (e) {
+              // If direct add fails (e.g., privacy settings or bot not admin), we skip silently per user request
+              logger.error(`[autoinvite] Failed to auto-add ${senderJid}: ${e.message}`);
+              invitedUsers.add(senderJid); // Mark as tried to avoid repeated failures
             }
           }
         } catch (e) {
