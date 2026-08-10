@@ -47,9 +47,19 @@ async function startPairing(phoneNumber) {
     expiresAt: Date.now() + PAIRING_TIMEOUT_MS,
     sock: null,
     timeoutHandle: null,
+    codePromise: null,
   };
 
   sessions.set(number, session);
+
+  // The HTTP endpoint can wait briefly for the code, so users see it as soon
+  // as it is generated instead of seeing a stale "requesting" message.
+  let resolveCode;
+  let rejectCode;
+  session.codePromise = new Promise((resolve, reject) => {
+    resolveCode = resolve;
+    rejectCode = reject;
+  });
 
   // Set timeout to cleanup stale sessions
   session.timeoutHandle = setTimeout(() => {
@@ -83,19 +93,23 @@ async function startPairing(phoneNumber) {
 
       if (connection === 'connecting' && !session.code && !pairingCodeRequested) {
         pairingCodeRequested = true;
+        session.status = 'requesting_code';
         try {
-          // Delay slightly to ensure the socket handshake is complete
-          await new Promise(r => setTimeout(r, 3000));
-          // Abort if the session was already cleaned up or errored
+          // WhatsApp needs a moment to finish opening the WebSocket before the
+          // link_code_companion_reg IQ request can be sent.
+          await new Promise(r => setTimeout(r, 3500));
           if (!sessions.has(number) || session.status === 'error') return;
+          if (state.creds.registered) {
+            throw new Error('This pairing session is already registered. Start a new pairing request.');
+          }
           session.code = await sock.requestPairingCode(number);
           session.status = 'awaiting_code';
+          resolveCode(session);
           logger.info(`[pairingManager] Generated code ${session.code} for ${number}`);
         } catch (err) {
-          // Allow a retry on the next connecting event if the error is transient
-          pairingCodeRequested = false;
           session.status = 'error';
           session.error = err.message || 'Failed to generate pairing code. Please try again.';
+          rejectCode(err);
           logger.error(`[pairingManager] Failed to generate code for ${number}: ${err.message}`);
         }
       }
@@ -123,16 +137,34 @@ async function startPairing(phoneNumber) {
         // If the device is already registered (logged out / replaced), surface a clear message
         if (statusCode === DisconnectReason.loggedOut) {
           session.status = 'error';
-          session.error = 'This number is already linked to another session. Please log out from WhatsApp > Linked Devices first, then try again.';
+          session.error = 'WhatsApp rejected the link. Remove an old/failed entry from WhatsApp > Linked devices, wait a few seconds, and request a fresh code.';
+          rejectCode(new Error(session.error));
         } else if (statusCode === DisconnectReason.connectionReplaced) {
           session.status = 'error';
           session.error = 'Connection replaced by another session. Please try again.';
+          rejectCode(new Error(session.error));
         } else if (session.status !== 'success' && session.status !== 'error') {
           session.status = 'error';
-          session.error = 'Connection closed unexpectedly. Please try again.';
+          session.error = 'Connection closed unexpectedly. Please request a new code.';
+          rejectCode(new Error(session.error));
         }
       }
     });
+
+    // Wait only until the code is ready. This keeps the dashboard in sync
+    // while still allowing a slow WhatsApp connection to fail clearly.
+    try {
+      await Promise.race([
+        session.codePromise,
+        new Promise((_, reject) => setTimeout(() => reject(new Error('WhatsApp took too long to generate a pairing code. Please try again.')), 20000)),
+      ]);
+    } catch (err) {
+      if (session.status !== 'error') {
+        session.status = 'error';
+        session.error = err.message;
+      }
+      throw err;
+    }
 
     return session;
   } catch (err) {

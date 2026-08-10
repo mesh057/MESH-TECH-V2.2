@@ -1138,7 +1138,12 @@
 
                 if (data.success) {
                     currentPhoneNumber = data.phoneNumber || phoneNumber.replace(/[^0-9]/g, '');
-                    showWaiting('GENERATING PAIRING CODE...');
+                    currentCode = data.code || null;
+                    if (currentCode) {
+                        showSuccess(currentCode);
+                    } else {
+                        showWaiting('CONNECTING TO WHATSAPP...');
+                    }
                     pollForCode(currentPhoneNumber);
                 } else {
                     showError(data.error || 'FAILED TO REQUEST PAIRING CODE');
@@ -1154,9 +1159,10 @@
 
         function pollForCode(phoneNumber) {
             let attempts = 0;
-            const maxAttempts = 60; // Allow time for user to enter code in WhatsApp
+            const maxAttempts = 90; // Keep the session alive for up to 3 minutes
+            let interval;
 
-            const interval = setInterval(async () => {
+            const checkStatus = async () => {
                 attempts++;
                 try {
                     const response = await fetch('/api/pairing-code?phoneNumber=' + encodeURIComponent(phoneNumber));
@@ -1171,17 +1177,18 @@
                         } else if (data.code && currentCode !== data.code) {
                             currentCode = data.code;
                             showSuccess(data.code);
-                            // Don't clear interval, keep polling for sessionId
                         }
+                    } else if (data.error && attempts > 1) {
+                        clearInterval(interval);
+                        showError(data.error);
+                        submitBtn.disabled = false;
+                        btnText.innerHTML = '<i class="fas fa-key"></i> GENERATE CODE';
+                        return;
                     }
-                    
+
                     if (attempts >= maxAttempts) {
                         clearInterval(interval);
-                        if (!currentCode) {
-                            showError('PAIRING CODE GENERATION TIMED OUT. PLEASE TRY AGAIN.');
-                        } else {
-                            showError('PAIRING TIMED OUT. PLEASE TRY AGAIN.');
-                        }
+                        showError(currentCode ? 'PAIRING TIMED OUT. REQUEST A NEW CODE.' : 'PAIRING CODE GENERATION TIMED OUT. PLEASE TRY AGAIN.');
                         submitBtn.disabled = false;
                         btnText.innerHTML = '<i class="fas fa-key"></i> GENERATE CODE';
                     }
@@ -1193,7 +1200,11 @@
                         btnText.innerHTML = '<i class="fas fa-key"></i> GENERATE CODE';
                     }
                 }
-            }, 2000);
+            };
+
+            // Check immediately, then every two seconds.
+            checkStatus();
+            interval = setInterval(checkStatus, 2000);
         }
 
         function showSessionId(sessionId) {
@@ -1223,7 +1234,7 @@
             pairingCodeDisplay.innerHTML = `<div class="pairing-code">${code}</div>`;
             resultMessage.innerHTML = `
                 <strong>YOUR PAIRING CODE IS READY.</strong><br>
-                THIS CODE WILL EXPIRE IN 1 MINUTE. USE IT QUICKLY!
+                ENTER THIS CODE IN WHATSAPP NOW. DO NOT REQUEST ANOTHER CODE WHILE USING THIS ONE.
             `;
             copyBtn.style.display = 'inline-block';
             copyBtn.textContent = '📋 COPY CODE';
