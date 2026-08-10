@@ -16,7 +16,9 @@ const sessions = new Map();
  * Normalizes a phone number to digits only.
  */
 function normalizePhoneNumber(value) {
-  return String(value || '').replace(/[^0-9]/g, '');
+  let number = String(value || '').trim().replace(/[^0-9]/g, '');
+  if (number.startsWith('00')) number = number.slice(2);
+  return number;
 }
 
 /**
@@ -24,8 +26,8 @@ function normalizePhoneNumber(value) {
  */
 async function startPairing(phoneNumber) {
   const number = normalizePhoneNumber(phoneNumber);
-  if (!/^\d{8,15}$/.test(number)) {
-    throw new Error('Enter a valid phone number with country code.');
+  if (!/^[1-9]\d{7,14}$/.test(number)) {
+    throw new Error('Enter the full international number with country code, without +, spaces, or a leading 0. Example: 254712345678.');
   }
 
   // If there's an existing session for this number, clean it up first
@@ -49,6 +51,10 @@ async function startPairing(phoneNumber) {
     timeoutHandle: null,
   };
 
+  // connection.update may emit "connecting" more than once. Only one
+  // request may be in flight, otherwise WhatsApp can invalidate the code
+  // that was shown to the user and report that the phone number is wrong.
+
   sessions.set(number, session);
 
   // Set timeout to cleanup
@@ -60,6 +66,7 @@ async function startPairing(phoneNumber) {
 
   try {
     const { state, saveCreds } = await useMultiFileAuthState(tempAuthFolder);
+    let pairingCodeRequested = false;
     const { version } = await fetchLatestBaileysVersion();
 
     const sock = makeWASocket({
@@ -77,16 +84,22 @@ async function startPairing(phoneNumber) {
     sock.ev.on('connection.update', async (update) => {
       const { connection, lastDisconnect } = update;
 
-      if (connection === 'connecting' && !session.code) {
+      if (connection === 'connecting' && !session.code && !pairingCodeRequested) {
+        pairingCodeRequested = true;
         try {
           // Delay slightly to ensure socket is ready for pairing code request
           await new Promise(r => setTimeout(r, 3000));
+          if (!sessions.has(number) || session.status === 'error') return;
+          if (state.creds.registered) {
+            throw new Error('This pairing session is already registered. Start a new pairing request.');
+          }
+          session.status = 'requesting_code';
           session.code = await sock.requestPairingCode(number);
           session.status = 'awaiting_code';
           logger.info(`[pairingManager] Generated code ${session.code} for ${number}`);
         } catch (err) {
           session.status = 'error';
-          session.error = err.message;
+          session.error = err.message || 'Failed to generate a pairing code. Please try again.';
           logger.error(`[pairingManager] Failed to generate code for ${number}: ${err.message}`);
         }
       }

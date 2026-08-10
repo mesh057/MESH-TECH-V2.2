@@ -818,7 +818,7 @@
                                     autocomplete="off"
                                 >
                                 <div class="phone-hint">
-                                    >> INCLUDE COUNTRY CODE (254=KENYA, 92=PAKISTAN, 91=INDIA)
+                                    >> USE FULL INTERNATIONAL FORMAT (254712345678) — NO +, SPACES, OR LEADING 0
                                 </div>
                             </div>
 
@@ -1119,8 +1119,13 @@
             e.preventDefault();
             
             const phoneNumber = phoneInput.value.trim();
-            if (!phoneNumber) {
+            const normalizedPhoneNumber = phoneNumber.replace(/[^0-9]/g, '').replace(/^00/, '');
+            if (!normalizedPhoneNumber) {
                 showError('PLEASE ENTER YOUR PHONE NUMBER');
+                return;
+            }
+            if (!/^[1-9]\d{7,14}$/.test(normalizedPhoneNumber)) {
+                showError('USE FULL INTERNATIONAL FORMAT, FOR EXAMPLE 254712345678. DO NOT USE A LOCAL NUMBER.');
                 return;
             }
 
@@ -1131,7 +1136,7 @@
                 const response = await fetch('/api/request-pairing', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ phoneNumber })
+                    body: JSON.stringify({ phoneNumber: normalizedPhoneNumber })
                 });
 
                 const data = await response.json();
