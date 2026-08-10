@@ -31,4 +31,15 @@ function runClearCache(commands) {
   return results;
 }
 
-module.exports = { runClearCache };
+module.exports = {
+  name: 'clearcache',
+  aliases: ['cc'],
+  category: 'SYSTEM',
+  execute: async (sock, msg, args, commands) => {
+    const result = runClearCache(commands);
+    await sock.sendMessage(msg.key.remoteJid, {
+      text: `✅ Cache cleared.\nMessages: ${result.messagesCleared ?? 'done'}\nGroups: ${result.groupsFlushed ? 'flushed' : 'unchanged'}\nLoaded commands: ${result.loadedCommands}`,
+    }, { quoted: msg });
+  },
+  runClearCache,
+};
