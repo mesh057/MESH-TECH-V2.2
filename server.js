@@ -49,15 +49,13 @@ app.post('/api/request-pairing', rateLimit, async (req, res) => {
       return res.status(400).json({ success: false, error: 'Phone number is required.' });
     }
 
-    const session = await pairingManager.startPairing(phoneNumber);
+    await pairingManager.startPairing(phoneNumber);
     const normalized = pairingManager.normalizePhoneNumber(phoneNumber);
 
     res.json({
       success: true,
-      message: 'Pairing code generated.',
+      message: 'Pairing code requested.',
       phoneNumber: normalized,
-      status: session.status,
-      code: session.code,
     });
   } catch (error) {
     res.status(400).json({ success: false, error: error.message });

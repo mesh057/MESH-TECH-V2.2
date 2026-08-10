@@ -6,7 +6,6 @@ const {
   default: makeWASocket,
   useMultiFileAuthState,
   fetchLatestBaileysVersion,
-  DisconnectReason,
 } = require('@whiskeysockets/baileys');
 const logger = require('./logger');
 
@@ -31,6 +30,7 @@ async function startPairing(phoneNumber) {
 
   // If there's an existing session for this number, clean it up first
   if (sessions.has(number)) {
+    const existing = sessions.get(number);
     await cleanup(number);
   }
 
@@ -47,21 +47,11 @@ async function startPairing(phoneNumber) {
     expiresAt: Date.now() + PAIRING_TIMEOUT_MS,
     sock: null,
     timeoutHandle: null,
-    codePromise: null,
   };
 
   sessions.set(number, session);
 
-  // The HTTP endpoint can wait briefly for the code, so users see it as soon
-  // as it is generated instead of seeing a stale "requesting" message.
-  let resolveCode;
-  let rejectCode;
-  session.codePromise = new Promise((resolve, reject) => {
-    resolveCode = resolve;
-    rejectCode = reject;
-  });
-
-  // Set timeout to cleanup stale sessions
+  // Set timeout to cleanup
   session.timeoutHandle = setTimeout(() => {
     if (sessions.has(number) && sessions.get(number).status !== 'success') {
       cleanup(number);
@@ -82,34 +72,21 @@ async function startPairing(phoneNumber) {
     });
 
     session.sock = sock;
-
-    // Guard against requesting the pairing code more than once per session
-    let pairingCodeRequested = false;
-
     sock.ev.on('creds.update', saveCreds);
 
     sock.ev.on('connection.update', async (update) => {
       const { connection, lastDisconnect } = update;
 
-      if (connection === 'connecting' && !session.code && !pairingCodeRequested) {
-        pairingCodeRequested = true;
-        session.status = 'requesting_code';
+      if (connection === 'connecting' && !session.code) {
         try {
-          // WhatsApp needs a moment to finish opening the WebSocket before the
-          // link_code_companion_reg IQ request can be sent.
-          await new Promise(r => setTimeout(r, 3500));
-          if (!sessions.has(number) || session.status === 'error') return;
-          if (state.creds.registered) {
-            throw new Error('This pairing session is already registered. Start a new pairing request.');
-          }
+          // Delay slightly to ensure socket is ready for pairing code request
+          await new Promise(r => setTimeout(r, 3000));
           session.code = await sock.requestPairingCode(number);
           session.status = 'awaiting_code';
-          resolveCode(session);
           logger.info(`[pairingManager] Generated code ${session.code} for ${number}`);
         } catch (err) {
           session.status = 'error';
-          session.error = err.message || 'Failed to generate pairing code. Please try again.';
-          rejectCode(err);
+          session.error = err.message;
           logger.error(`[pairingManager] Failed to generate code for ${number}: ${err.message}`);
         }
       }
@@ -121,50 +98,23 @@ async function startPairing(phoneNumber) {
           session.sessionId = `MESH-TECH-MD:~${credsBuffer.toString('base64')}`;
           session.status = 'success';
           logger.info(`[pairingManager] Successfully paired ${number}`);
-
-          // Keep the session alive briefly so the UI can read the success state
+          
+          // Keep it for a bit so the UI can read the success state, then cleanup
           setTimeout(() => cleanup(number), 30000);
         } catch (err) {
           session.status = 'error';
-          session.error = 'Linked, but failed to generate session string. Please try again.';
-          logger.error(`[pairingManager] Failed to generate session string for ${number}: ${err.message}`);
+          session.error = 'Linked, but failed to generate session string.';
         }
       }
 
       if (connection === 'close') {
-        const statusCode = lastDisconnect?.error?.output?.statusCode;
-
-        // If the device is already registered (logged out / replaced), surface a clear message
-        if (statusCode === DisconnectReason.loggedOut) {
+        // If it closed without success or error, it might be a timeout or network issue
+        if (session.status !== 'success' && session.status !== 'error') {
           session.status = 'error';
-          session.error = 'WhatsApp rejected the link. Remove an old/failed entry from WhatsApp > Linked devices, wait a few seconds, and request a fresh code.';
-          rejectCode(new Error(session.error));
-        } else if (statusCode === DisconnectReason.connectionReplaced) {
-          session.status = 'error';
-          session.error = 'Connection replaced by another session. Please try again.';
-          rejectCode(new Error(session.error));
-        } else if (session.status !== 'success' && session.status !== 'error') {
-          session.status = 'error';
-          session.error = 'Connection closed unexpectedly. Please request a new code.';
-          rejectCode(new Error(session.error));
+          session.error = 'Connection closed prematurely.';
         }
       }
     });
-
-    // Wait only until the code is ready. This keeps the dashboard in sync
-    // while still allowing a slow WhatsApp connection to fail clearly.
-    try {
-      await Promise.race([
-        session.codePromise,
-        new Promise((_, reject) => setTimeout(() => reject(new Error('WhatsApp took too long to generate a pairing code. Please try again.')), 20000)),
-      ]);
-    } catch (err) {
-      if (session.status !== 'error') {
-        session.status = 'error';
-        session.error = err.message;
-      }
-      throw err;
-    }
 
     return session;
   } catch (err) {
@@ -183,7 +133,7 @@ function getStatus(phoneNumber) {
 }
 
 /**
- * Cleans up a pairing session and its temporary files.
+ * Cleans up a pairing session.
  */
 async function cleanup(phoneNumber) {
   const number = normalizePhoneNumber(phoneNumber);
@@ -194,7 +144,7 @@ async function cleanup(phoneNumber) {
   try {
     if (session.sock) session.sock.end(undefined);
   } catch (_) {}
-
+  
   try {
     fs.rmSync(session.tempAuthFolder, { recursive: true, force: true });
   } catch (_) {}
@@ -203,7 +153,7 @@ async function cleanup(phoneNumber) {
 }
 
 /**
- * Returns the count of active pairing sessions.
+ * Returns count of active pairing sessions.
  */
 function getActiveCount() {
   return sessions.size;
