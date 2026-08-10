@@ -1,7 +1,7 @@
 {
-  "name": "whatsapp-bot",
-  "version": "1.0.0",
-  "description": "A starter WhatsApp bot built with Node.js and the Baileys library",
+  "name": "mesh-tech-md",
+  "version": "2.2.0",
+  "description": "MESH TECH MD - WhatsApp Multi-Device Bot built with Node.js and the Baileys library",
   "main": "index.js",
   "type": "commonjs",
   "scripts": {

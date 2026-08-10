@@ -29,7 +29,7 @@ function acquireLock() {
       console.warn(`[instanceLock] ⚠️ Lock PID (${oldPid}) matches our own PID — stale lock from a previous boot. Replacing.`);
       fs.unlinkSync(lockFile);
     } else if (isOurProcess(oldPid)) {
-      console.error(`[instanceLock] ❌ Another ISAAC-MD instance is running (PID ${oldPid}). Exiting.`);
+      console.error(`[instanceLock] ❌ Another MESH-TECH-MD instance is running (PID ${oldPid}). Exiting.`);
       process.exit(1);
     } else {
       // Stale or foreign PID — clean it up

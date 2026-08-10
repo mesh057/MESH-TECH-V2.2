@@ -22,22 +22,22 @@
   },
   "env": {
     "HEROKU_APP_NAME": {
-      "description": "The name of this Heroku app the one you entered at the top. Required if you want to use .update/.updatenow.",
-      "value": "",
-      "required": true
-    },
-    "SESSION_ID": {
-      "description": "Your WhatsApp session string, generated via the pairing terminal (QR CODE or PAIR CODE)",
+      "description": "The name of this Heroku app (the one you entered at the top). Required only if you want to use .update/.updatenow.",
       "value": "",
       "required": false
     },
-    "PREFIX": {
-      "description": "Command prefix for the bot",
+    "SESSION_ID": {
+      "description": "Your WhatsApp session string, generated via the pairing terminal (QR CODE or PAIR CODE). Leave blank to pair on first boot.",
+      "value": "",
+      "required": false
+    },
+    "BOT_PREFIX": {
+      "description": "Command prefix for the bot (e.g. . or ! or /)",
       "value": ".",
       "required": true
     },
     "BOT_NAME": {
-      "description": "Display name for the bot",
+      "description": "Display name for the bot, shown in menus and messages",
       "value": "MESH TECH MD",
       "required": false
     },
@@ -51,34 +51,34 @@
       "value": "254746844168",
       "required": true
     },
+    "WORK_TYPE": {
+      "description": "Set to 'public' so anyone can use commands, or 'private' for owner-only mode",
+      "value": "public",
+      "required": false
+    },
+    "TIMEZONE": {
+      "description": "Timezone used for scheduled features (e.g. Africa/Nairobi, Asia/Karachi, Asia/Kolkata)",
+      "value": "Africa/Nairobi",
+      "required": false
+    },
+    "LOG_LEVEL": {
+      "description": "Logging verbosity: 'silent' (recommended for production), 'info', or 'debug'",
+      "value": "silent",
+      "required": false
+    },
     "HEROKU_API_KEY": {
-      "description": "Your Heroku account API key (dashboard.heroku.com/account → API Key). Required if you want to use .update/.updatenow to check and trigger redeploys from WhatsApp.",
+      "description": "Your Heroku account API key (dashboard.heroku.com/account → API Key). Required only if you want to use .update/.updatenow.",
       "value": "",
-      "required": true
+      "required": false
     },
     "STICKER_NAME": {
       "description": "Pack name used on stickers created by the bot",
       "value": "MESH TECH MD",
       "required": false
     },
-    "AUTO_READ_STATUS": {
-      "description": "Automatically view contacts' WhatsApp statuses (true/false)",
-      "value": "true",
-      "required": false
-    },
-    "AUTO_REACT": {
-      "description": "Automatically react to incoming messages (true/false)",
-      "value": "false",
-      "required": false
-    },
-    "PUBLIC_MODE": {
-      "description": "If true, anyone can use commands. If false, only the owner can (true/false)",
-      "value": "true",
-      "required": false
-    },
-    "TIMEZONE": {
-      "description": "Timezone used for scheduled features",
-      "value": "Africa/Nairobi",
+    "OFFICIAL_GROUP_INVITE": {
+      "description": "WhatsApp group invite link for your official support group (e.g. https://chat.whatsapp.com/XXXXXX). Used by the .join command.",
+      "value": "",
       "required": false
     }
   }

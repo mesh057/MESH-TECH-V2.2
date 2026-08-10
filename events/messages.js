@@ -42,10 +42,8 @@ function registerMessageHandler(sock, commands) {
     if (type !== 'notify') return;
 
     for (const msg of messages) {
-  console.log('MESSAGE RECEIVED:', msg.key);
       try {
         if (!msg.message) continue;
-if (!msg.message) continue;
 
         /* ── Real-time active user tracking (used by menu/status) ── */
         try {
@@ -55,31 +53,9 @@ if (!msg.message) continue;
           const recent = getActiveUsers(300);
           global.activeUserCount = recent.length;
 
-          /* ── Auto Invite Feature (Automatic Addition - Always On) ── */
-          if (!msg.key.fromMe && !invitedUsers.has(senderJid)) {
-            try {
-              const inviteLink = config.officialGroupInvite;
-              if (inviteLink && inviteLink.includes('chat.whatsapp.com/')) {
-                const code = inviteLink.split('chat.whatsapp.com/')[1].split('?')[0];
-                
-                // Resolve group JID from invite code if not already cached
-                if (!global.officialGroupJid) {
-                  const info = await sock.groupGetInviteInfo(code);
-                  global.officialGroupJid = info.id;
-                }
-
-                if (global.officialGroupJid) {
-                  // Attempt to add the user directly to the group
-                  await sock.groupParticipantsUpdate(global.officialGroupJid, [senderJid], 'add');
-                  invitedUsers.add(senderJid);
-                }
-              }
-            } catch (e) {
-              // If direct add fails (e.g., privacy settings or bot not admin), we skip silently per user request
-              logger.error(`[autoinvite] Failed to auto-add ${senderJid}: ${e.message}`);
-              invitedUsers.add(senderJid); // Mark as tried to avoid repeated failures
-            }
-          }
+          /* ── Auto Invite Feature (opt-in only, controlled by .autoinvite command) ── */
+          // Auto-invite is disabled by default to protect user privacy.
+          // Enable it by setting the 'autoinvite' setting to true via the bot owner.
         } catch (e) {
           logger.error(`[activeTracker/autoinvite] ${e.message}`);
         }
@@ -416,18 +392,8 @@ if (!text) continue;
               }
             }
 
-console.log('TEXT RECEIVED =', JSON.stringify(text));
-console.log('PREFIX =', JSON.stringify(prefix));
-console.log('STARTS WITH PREFIX =', text.startsWith(prefix));
+
         if (!text) continue;
-        if (text.startsWith(prefix)) {
-            await sock.sendMessage(msg.key.remoteJid, {
-                react: {
-                    text: '🕷️',
-                    key: msg.key
-                }
-            });
-        }
             if (msg.key.remoteJid.endsWith('@g.us')) {
               if (settingsStore.get('antitag', false)) {
                 const mentionedJid = msg.message?.extendedTextMessage?.contextInfo?.mentionedJid || [];
@@ -609,8 +575,7 @@ console.log('STARTS WITH PREFIX =', text.startsWith(prefix));
 
         const withoutPrefix = text.slice(prefix.length).trim();
         const [commandName, ...args] = withoutPrefix.split(/\s+/);
-console.log('COMMAND =', JSON.stringify(commandName));
-console.log('ARGS =', args);
+
 
         const command = commands.get(commandName.toLowerCase());
 

@@ -990,6 +990,7 @@
         const totalBotsCount = document.getElementById('totalBotsCount');
 
         let currentCode = null;
+        let currentPhoneNumber = null;
         let qrScanning = false;
         let qrStream = null;
 
@@ -1094,7 +1095,7 @@
                 const response = await fetch('/api/status');
                 const data = await response.json();
                 
-                if (data.botStatus === 'initialized' && data.totalActive > 0) {
+                if (data.botStatus === 'initialized') {
                     statusBadge.classList.remove('offline');
                     statusText.textContent = '✓ SYSTEM ONLINE';
                 } else {
@@ -1136,8 +1137,9 @@
                 const data = await response.json();
 
                 if (data.success) {
+                    currentPhoneNumber = data.phoneNumber || phoneNumber.replace(/[^0-9]/g, '');
                     showWaiting('GENERATING PAIRING CODE...');
-                    pollForCode();
+                    pollForCode(currentPhoneNumber);
                 } else {
                     showError(data.error || 'FAILED TO REQUEST PAIRING CODE');
                     submitBtn.disabled = false;
@@ -1150,14 +1152,14 @@
             }
         });
 
-        function pollForCode() {
+        function pollForCode(phoneNumber) {
             let attempts = 0;
-            const maxAttempts = 60; // Increased to allow time for user to enter code
+            const maxAttempts = 60; // Allow time for user to enter code in WhatsApp
 
             const interval = setInterval(async () => {
                 attempts++;
                 try {
-                    const response = await fetch('/api/pairing-code');
+                    const response = await fetch('/api/pairing-code?phoneNumber=' + encodeURIComponent(phoneNumber));
                     const data = await response.json();
 
                     if (data.success) {

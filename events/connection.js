@@ -51,17 +51,19 @@ function registerConnectionHandler(sock, startBot, wasAlreadyRegistered) {
       // Match the reference bot: send one rich connected welcome to the bot's own chat.
       const botNumber = selfJid.split('@')[0];
       const pushName = sock.user?.name || 'User';
+      const settingsStore = require('../utils/settingsStore');
+      const activePrefix = settingsStore.get('prefix', config.prefix);
       const welcomeMsg = `*MESH-TECH MD BOT* is now successfully connected! 🚀\n\n` +
         `*Status:* Online & Active ✅\n` +
         `*Owner:* @${botNumber}\n` +
-        `*Prefix:* [ . ]\n\n` +
-        `> _Type *.menu* to explore all commands._\n\n` +
+        `*Prefix:* [ ${activePrefix} ]\n\n` +
+        `> _Type *${activePrefix}menu* to explore all commands._\n\n` +
         `*Powered by MESH TECH* ⚡\n\n` +
         `👋 *Welcome ${pushName}!*\n\n` +
         `Thank you for using *MESH-TECH MD BOT*! 🤖\n\n` +
         `📢 *Follow our channel:*\n` +
         `https://whatsapp.com/channel/0029VbDeTrNEKyZ9GlUude2R\n\n` +
-        `Type *.menu* to explore all commands!`;
+        `Type *${activePrefix}menu* to explore all commands!`;
       const logoPath = path.join(__dirname, '..', 'media', 'MESH.jpg');
       const welcomePayload = fs.existsSync(logoPath)
         ? { image: fs.readFileSync(logoPath), caption: welcomeMsg }
