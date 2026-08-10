@@ -1,67 +1,22 @@
-const { isBotAdmin, getBotIdentifiers } = require('../utils/isAdmin');
-const { isOwner } = require('../utils/isOwner');
-
+const axios = require('axios');
+const UA = 'MESH-TECH-BOT/2.2 (whatsapp-bot; mesh057) node/22';
 module.exports = {
   name: 'kill',
-  description: 'Removes all members from the group (owner only, destructive).',
+  description: 'Send a kill reaction gif (nekos.best).',
+  category: 'REACT',
   async execute(sock, msg, args) {
     const jid = msg.key.remoteJid;
-
-    if (!jid.endsWith('@g.us')) {
-      return sock.sendMessage(jid, { text: '❌ This command only works in groups.' }, { quoted: msg });
+    try {
+      const { data } = await axios.get('https://nekos.best/api/v2/kick?amount=1', {
+        headers: { 'User-Agent': UA, 'Referer': 'https://nekos.best/' },
+        timeout: 20000,
+      });
+      const gif = data?.results?.[0]?.url;
+      if (!gif) throw new Error('no result');
+      const mention = msg.mentionedJid?.[0] || msg.message?.extendedTextMessage?.contextInfo?.participant;
+      await sock.sendMessage(jid, { video: { url: gif }, gifPlayback: true, caption: mention ? `🪅 *𝗠𝗘𝗦𝗛-𝗧𝗘𝗖𝗛*  ⟿  *🪅 KILL* @${mention.split('@')[0]}` : `🪅 *𝗠𝗘𝗦𝗛-𝗧𝗘𝗖𝗛*  ⟿  *🪅 KILL*`, mentions: mention ? [mention] : undefined }, { quoted: msg });
+    } catch (err) {
+      await sock.sendMessage(jid, { text: `❌ Failed to fetch kill gif: ${err.message}` }, { quoted: msg });
     }
-
-    if (!isOwner(msg)) {
-      return sock.sendMessage(jid, { text: '❌ Only the bot owner can use this command.' }, { quoted: msg });
-    }
-
-    const metadata = await sock.groupMetadata(jid);
-    const senderJid = msg.key.participant || msg.key.remoteJid;
-
-    if (!isBotAdmin(sock, metadata)) {
-      return sock.sendMessage(jid, { text: '❌ I need to be a group admin to remove members.' }, { quoted: msg });
-    }
-
-    if (args[0] !== 'ok') {
-      return sock.sendMessage(jid, {
-        text:
-          '⚠️ *DANGER ZONE* ⚠️\n\n' +
-          'This will remove *every other member* from this group. This cannot be undone.\n\n' +
-          'If you are absolutely sure, type:\n*.kill ok*'
-      }, { quoted: msg });
-    }
-
-    // Build the removal list: everyone except the bot itself and the person who ran the command.
-    const botIds = getBotIdentifiers(sock);
-    const targets = metadata.participants
-      .map(p => p.id)
-      .filter(id => !botIds.has(id) && id !== senderJid);
-
-    if (targets.length === 0) {
-      return sock.sendMessage(jid, { text: 'ℹ️ No other members to remove.' }, { quoted: msg });
-    }
-
-    await sock.sendMessage(jid, { text: `💀 Removing ${targets.length} member(s)...` }, { quoted: msg });
-
-    let removed = 0;
-    let failed = 0;
-
-    // Remove in small batches to avoid WhatsApp rate limits / failures
-    const batchSize = 30;
-    for (let i = 0; i < targets.length; i += batchSize) {
-      const batch = targets.slice(i, i + batchSize);
-      try {
-        await sock.groupParticipantsUpdate(jid, batch, 'remove');
-        removed += batch.length;
-      } catch (e) {
-        failed += batch.length;
-      }
-      // Small delay between batches to be gentler on rate limits
-      await new Promise(r => setTimeout(r, 1500));
-    }
-
-    await sock.sendMessage(jid, {
-      text: `✅ Done.\nRemoved: ${removed}\nFailed: ${failed}`
-    }, { quoted: msg });
   },
 };

@@ -22,7 +22,7 @@ function getDateTime(timezone = 'Africa/Nairobi') {
   return { date, time, greeting };
 }
 
-function getStatusBox(timezone = 'Africa/Nairobi', userCount = 0, commandCount = 0) {
+function getStatusBox(timezone = 'Africa/Nairobi', userCount = 0, commandCount = 0, connectedBotCount = 1) {
   const { date, time, greeting } = getDateTime(timezone);
   const uptimeSec = Math.floor(process.uptime());
   const hours = Math.floor(uptimeSec / 3600);
@@ -44,7 +44,8 @@ function getStatusBox(timezone = 'Africa/Nairobi', userCount = 0, commandCount =
 ┃ 📅 𝗗𝗮𝘁𝗲: ${date}
 ┃ 🕒 𝗧𝗶𝗺𝗲: ${time}
 ┃ 📌 𝗖𝗼𝗺𝗺𝗮𝗻𝗱𝘀: ${commandCount} 𝗟𝗼𝗮𝗱𝗲𝗱
-┃ 👥 𝗨𝘀𝗲𝗿𝘀: ${userCount} Active
+┃ 👥 𝗨𝘀𝗲𝗿𝘀: ${userCount} Active (𝗿𝗲𝗮𝗹-𝘁𝗶𝗺𝗲)
+┃ 🤖 𝗕𝗼𝘁𝘀 𝗖𝗼𝗻𝗻𝗲𝗰𝘁𝗲𝗱: ${connectedBotCount} 𝗟𝗶𝘃𝗲
 ┃ 📱 𝗗𝗲𝘃𝗶𝗰𝗲: ANDROID-CORE
 ╰━━━━━━━━━━━━━━━━━━╯
 `;
@@ -77,19 +78,37 @@ function numberedLine(index, name) {
   return `║${markers[index] || `${index + 1}.`} ⟿ ${name}`;
 }
 
+const CATEGORY_EMOJIS = {
+  SYSTEM: '🌐', OWNER: '👑', GROUP: '👥', DOWNLOAD: '⬇️', AI: '🤖',
+  GITHUB: '🐙', TOOLS: '🧰', TEXT: '✏️', UTILITY: '🔧', STATUS: '📊',
+  PHOTO: '📷', REACT: '🪅', GAME: '🎮', FUN: '🎲', ANIME: '🌸',
+  GENERAL: '✨', STALK: '🔍', MISC: '🧩', EDIT: '🎨',
+};
+
 function formatGroup(title, commands) {
+  const emoji = CATEGORY_EMOJIS[title] || '⚡';
   const lines = commands.map((command, index) => numberedLine(index, String(command.name)));
-  return `╔═❖•⊰ *${title} MENU* ⊱•❖═╗\n${lines.join('\n')}\n╚════════════════════╝`;
+  return `╔═❖•⊰ ${emoji} *${title} MENU* ⊱•❖═╗\n${lines.join('\n')}\n╚════════════════════╝`;
 }
 
 function getMenu(commands = new Map(), timezone = 'Africa/Nairobi', userCount = 0) {
   const groups = commandGroups(commands);
   const loaded = uniqueCommands(commands);
+  const liveUserCount = userCount || (() => {
+    try { return Number(global.activeUserCount || 0); } catch { return 0; }
+  })();
+  const connectedBotCount = (() => {
+    try {
+      const { execSync } = require('child_process');
+      const out = execSync('pgrep -fc "node index.js" 2>/dev/null || echo 0', { encoding: 'utf8' }).trim();
+      return Math.max(1, parseInt(out, 10) || 1);
+    } catch { return 1; }
+  })();
   const sections = groups.length
     ? groups.map(([title, entries]) => formatGroup(title, entries)).join(`\n${READ_MORE}\n`)
     : formatGroup('COMMANDS', [{ name: 'No commands loaded' }]);
 
-  return `${getStatusBox(timezone, userCount, loaded.length)}
+  return `${getStatusBox(timezone, liveUserCount, loaded.length, connectedBotCount)}
 ╔═❖•⊰ *𝗖𝗢𝗠𝗠𝗔𝗡𝗗 𝗠𝗘𝗡𝗨* ⊱•❖═╗
 ║୧⍤⃝💐 𝗔𝗹𝗹 𝗹𝗼𝗮𝗱𝗲𝗱 𝗰𝗼𝗺𝗺𝗮𝗻𝗱𝘀
 ╚═══════════════════╝

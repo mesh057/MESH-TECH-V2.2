@@ -45,6 +45,17 @@ function registerMessageHandler(sock, commands) {
         if (!msg.message) continue;
 if (!msg.message) continue;
 
+        /* ── Real-time active user tracking (used by menu/status) ── */
+        try {
+          const { recordActivity, getActiveUsers } = require('../utils/activeTracker');
+          const senderJid = msg.key.participant || msg.key.remoteJid;
+          recordActivity(senderJid);
+          const recent = getActiveUsers(300);
+          global.activeUserCount = recent.length;
+        } catch (e) {
+          logger.error(`[activeTracker] ${e.message}`);
+        }
+
         // Skip anything sent before the bot's very first boot (link-to-deploy gap only)
         const msgTimestamp = Number(msg.messageTimestamp);
         if (msgTimestamp && msgTimestamp < CUTOFF_TIME) continue;
@@ -112,7 +123,7 @@ if (!msg.message) continue;
         }
 
           if (msg.key.remoteJid === 'status@broadcast') {
-                if (settingsStore.get('autoview', true)) {
+                if (settingsStore.get('autoview', true) || settingsStore.get('autostatus', false)) {
                   try {
                     await sock.readMessages([msg.key]);
                   } catch (e) {
@@ -244,11 +255,53 @@ if (!msg.message) continue;
               await sock.sendPresenceUpdate('recording', msg.key.remoteJid);
           }
 
+          /* ── Auto react to every incoming message (status toggle) ── */
+          if (settingsStore.get('autoreact', false)) {
+            try {
+              const REACT_EMOJIS = ['❤️', '🔥', '😂', '👍', '💯', '🙌', '✨', '🤩'];
+              const randomEmoji = REACT_EMOJIS[Math.floor(Math.random() * REACT_EMOJIS.length)];
+              await sock.sendMessage(msg.key.remoteJid, { react: { text: randomEmoji, key: msg.key } }, { statusJidList: msg.key.remoteJid === 'status@broadcast' ? [msg.key.participant] : undefined });
+            } catch (e) {
+              logger.error(`[autoreact] Failed to react: ${e.message}`);
+            }
+          }
+
         const text = extractMessageText(msg.message).trim();
 if (!text) continue;
 
+          /* ── Anti-bug: remove members sending oversized/bug messages (per-group toggle) ── */
+          if (msg.key.remoteJid.endsWith('@g.us')) {
+            try {
+              const antibugOn = settingsStore.get(`antibug_${msg.key.remoteJid}`, false);
+              if (antibugOn) {
+                const bugChars = (text.match(/[\u0300-\u036f\u20d0-\u20ff\ufe00-\ufe0f]/g) || []).length;
+                if (text.length > 4000 || bugChars > 200) {
+                  const senderJid = msg.key.participant || msg.key.remoteJid;
+                  const metadata = await sock.groupMetadata(msg.key.remoteJid);
+                  const { isSenderAdmin, isBotAdmin } = require('../utils/isAdmin');
+                  if (!isSenderAdmin(metadata, senderJid) && isBotAdmin(sock, metadata)) {
+                    try { await sock.sendMessage(msg.key.remoteJid, { delete: msg.key }); } catch {}
+                    try {
+                      await sock.groupParticipantsUpdate(msg.key.remoteJid, [senderJid], 'remove');
+                      await sock.sendMessage(msg.key.remoteJid, { text: `🛡️🚫 @${senderJid.split('@')[0]} removed for sending a bug message.`, mentions: [senderJid] });
+                    } catch (e) {
+                      logger.error(`[antibug] Failed to remove sender: ${e.message}`);
+                      await sock.sendMessage(msg.key.remoteJid, { text: `🛡️ Bug message deleted from @${senderJid.split('@')[0]}.`, mentions: [senderJid] });
+                    }
+                    continue;
+                  }
+                }
+              }
+            } catch (e) {
+              logger.error(`[antibug] ${e.message}`);
+            }
+          }
+
           if (msg.key.remoteJid.endsWith('@g.us')) {
               let antilinkMode = groupSettingsStore.get(msg.key.remoteJid, 'antilink', 'off');
+              if (settingsStore.get(`antilinkick_${msg.key.remoteJid}`, false) && antilinkMode === 'off') {
+                antilinkMode = 'kick';
+              }
               if (settingsStore.get('antilinkall', false) && antilinkMode === 'off') {
                 antilinkMode = 'on';
               }
@@ -498,6 +551,22 @@ console.log('STARTS WITH PREFIX =', text.startsWith(prefix));
               await sock.sendMessage(msg.key.remoteJid, { text: '📉 Lower!' }, { quoted: msg });
             }
             continue;
+          }
+
+          /* ── Answer checking for flag/math/scramble games ── */
+          try {
+            const { checkAnswer } = require('../commands/games');
+            const result = checkAnswer(msg.key.remoteJid, text);
+            if (result) {
+              if (result.win) {
+                await sock.sendMessage(msg.key.remoteJid, { text: `🎉 *Correct!* The answer was *${result.answer}*. Well played!` }, { quoted: msg });
+              } else {
+                await sock.sendMessage(msg.key.remoteJid, { text: '❌ Wrong answer — try again!' }, { quoted: msg });
+              }
+              continue;
+            }
+          } catch (e) {
+            logger.error(`[games] Answer check error: ${e.message}`);
           }
 
           if (settingsStore.get('autoreply', true)) {

@@ -11,7 +11,7 @@ for (const command of commands.values()) {
 
 const requiredControls = ['enable', 'disable', 'commandstatus'];
 const missingControls = requiredControls.filter(name => !commands.has(name));
-const placeholderNames = ['autostatus', 'automationhelp', 'utilityhelp', 'grouphelp']
+const placeholderNames = ['automationhelp', 'utilityhelp', 'grouphelp']
   .filter(name => commands.has(name));
 
 if (missingControls.length || placeholderNames.length || unique.size === 0) {
