@@ -43,7 +43,7 @@ app.use(express.static(publicDir, { index: 'pairing.html' }));
 app.get('/api/status', (_req, res) => {
   res.json({
     botStatus: botConnectionState,
-    totalActive: pairingManager.getActiveCount(),
+    totalActive: pairingManager.getActiveCount ? pairingManager.getActiveCount() : 0,
     registered: isRegistered,
   });
 });

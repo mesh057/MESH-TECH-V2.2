@@ -1,78 +1,92 @@
 const fs = require('fs');
 const path = require('path');
+const { getContext } = require('./context');
 
-const DATA_PATH = path.join(__dirname, '../data/settings.json');
-const USE_DB = !!process.env.DATABASE_URL;
+class SettingsStore {
+    constructor(dataDir, ownerJid = 'default') {
+        this.dataDir = dataDir;
+        this.ownerJid = ownerJid;
+        this.dataPath = path.join(dataDir, 'settings.json');
+        this.useDb = !!process.env.DATABASE_URL;
+        this.state = {};
+        this.ready = this.init();
+    }
 
-let db = null;
-if (USE_DB) {
-    db = require('./db');
-}
+    async init() {
+        if (this.useDb) {
+            try {
+                const db = require('./db');
+                await db.query(`
+                    CREATE TABLE IF NOT EXISTS bot_settings (
+                        owner_jid TEXT NOT NULL,
+                        key       TEXT NOT NULL,
+                        value     JSONB NOT NULL,
+                        PRIMARY KEY (owner_jid, key)
+                    );
+                `);
+                const { rows } = await db.query(
+                    'SELECT key, value FROM bot_settings WHERE owner_jid = $1',
+                    [this.ownerJid]
+                );
+                for (const row of rows) this.state[row.key] = row.value;
+            } catch (err) {
+                this.state = this.loadFromDisk();
+            }
+        } else {
+            this.state = this.loadFromDisk();
+        }
+    }
 
-function loadFromDisk() {
-    try {
-        if (!fs.existsSync(DATA_PATH)) return {};
-        return JSON.parse(fs.readFileSync(DATA_PATH, 'utf8'));
-    } catch {
-        return {};
+    loadFromDisk() {
+        try {
+            if (!fs.existsSync(this.dataPath)) return {};
+            return JSON.parse(fs.readFileSync(this.dataPath, 'utf8'));
+        } catch {
+            return {};
+        }
+    }
+
+    saveToDisk() {
+        try {
+            fs.mkdirSync(path.dirname(this.dataPath), { recursive: true });
+            fs.writeFileSync(this.dataPath, JSON.stringify(this.state, null, 2));
+        } catch (err) {}
+    }
+
+    get(key, fallback = undefined) {
+        return key in this.state ? this.state[key] : fallback;
+    }
+
+    set(key, value) {
+        this.state[key] = value;
+        if (this.useDb) {
+            const db = require('./db');
+            db.query(
+                `INSERT INTO bot_settings (owner_jid, key, value)
+                 VALUES ($1, $2, $3)
+                 ON CONFLICT (owner_jid, key) DO UPDATE SET value = EXCLUDED.value`,
+                [this.ownerJid, key, JSON.stringify(value)]
+            ).catch(() => {});
+        } else {
+            this.saveToDisk();
+        }
     }
 }
 
-function saveToDisk(currentState) {
-    try {
-        fs.mkdirSync(path.dirname(DATA_PATH), { recursive: true });
-        fs.writeFileSync(DATA_PATH, JSON.stringify(currentState, null, 2));
-    } catch (err) {
-        console.error('[settingsStore] Failed to save to disk:', err.message);
-    }
-}
+// Proxy object to maintain backward compatibility with require()
+const proxy = {
+    get: (key, fallback) => {
+        const ctx = getContext();
+        if (ctx && ctx.settings) return ctx.settings.get(key, fallback);
+        return global.mainSettings ? global.mainSettings.get(key, fallback) : fallback;
+    },
+    set: (key, value) => {
+        const ctx = getContext();
+        if (ctx && ctx.settings) return ctx.settings.set(key, value);
+        if (global.mainSettings) return global.mainSettings.set(key, value);
+    },
+    ready: Promise.resolve() // Simplification
+};
 
-let state = USE_DB ? {} : loadFromDisk();
-
-const ready = USE_DB
-    ? db.query(`
-        CREATE TABLE IF NOT EXISTS bot_settings (
-            key   TEXT NOT NULL PRIMARY KEY,
-            value JSONB NOT NULL
-        );
-      `)
-      .then(async () => {
-          const { rows } = await db.query('SELECT key, value FROM bot_settings');
-          for (const row of rows) state[row.key] = row.value;
-          console.log('✅ settingsStore: loaded settings from PostgreSQL');
-      })
-      .catch((err) => {
-          console.error(
-              '[settingsStore] Failed to load from PostgreSQL, falling back to disk cache:',
-              err.message
-          );
-          state = loadFromDisk();
-      })
-    : Promise.resolve();
-
-function get(key, fallback = undefined) {
-    return key in state ? state[key] : fallback;
-}
-
-function set(key, value) {
-    state[key] = value;
-
-    if (USE_DB) {
-        db.query(
-            `INSERT INTO bot_settings (key, value)
-             VALUES ($1, $2)
-             ON CONFLICT (key) DO UPDATE SET value = EXCLUDED.value`,
-            [key, JSON.stringify(value)]
-        ).catch((err) => {
-            console.error('[settingsStore] Failed to persist to PostgreSQL:', err.message);
-        });
-    } else {
-        saveToDisk(state);
-    }
-}
-
-function getAll() {
-    return { ...state };
-}
-
-module.exports = { get, set, getAll, ready };
+module.exports = SettingsStore;
+Object.assign(module.exports, proxy);

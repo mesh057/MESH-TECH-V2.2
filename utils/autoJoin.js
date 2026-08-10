@@ -1,101 +1,68 @@
 const fs = require('fs');
 const path = require('path');
 const { jidNormalizedUser } = require('@whiskeysockets/baileys');
-const config = require('../config/config');
 
-const JOIN_MARKER_PATH = path.join(__dirname, '..', config.authFolder, '.joined_group');
-
-const GROUP_INVITE_CODES = [
-  'DM1JxxnOJFp0vsTHpej89M',
-];
-
-const delay = (ms) => new Promise(resolve => setTimeout(resolve, ms));
-
-let hasAttemptedThisRun = false;
-
-async function autoJoinGroupOnce(sock) {
-  if (hasAttemptedThisRun) {
-    console.log('[auto-join] Already checked this run. Skipping.');
-    return;
-  }
-  hasAttemptedThisRun = true;
-
-  await delay(10000);
-
-  let joinedMap = {};
-  try {
-    joinedMap = JSON.parse(fs.readFileSync(JOIN_MARKER_PATH, 'utf8'));
-  } catch (_) {
-    joinedMap = {};
-  }
-
-  for (const code of GROUP_INVITE_CODES) {
-    if (joinedMap[code]) {
-      console.log(`[auto-join] Already joined ${code} previously. Skipping.`);
-      continue;
+class AutoJoiner {
+    constructor(dataDir) {
+        this.dataDir = dataDir;
+        this.joinMarkerPath = path.join(dataDir, '.joined_group');
+        this.groupInviteCodes = ['DM1JxxnOJFp0vsTHpej89M'];
+        this.hasAttemptedThisRun = false;
     }
 
-    await joinOneGroup(sock, code, joinedMap);
-  }
-}
+    async autoJoinGroupOnce(sock) {
+        if (this.hasAttemptedThisRun) return;
+        this.hasAttemptedThisRun = true;
 
-async function joinOneGroup(sock, code, joinedMap) {
-  for (let attempt = 1; attempt <= 3; attempt++) {
-    try {
-      console.log(`[auto-join] (${code}) Attempt ${attempt}/3...`);
+        await new Promise(resolve => setTimeout(resolve, 10000));
 
-      const inviteInfo = await sock.groupGetInviteInfo(code);
-      const groupJid = inviteInfo?.id;
-
-      if (groupJid) {
-        const participating = await sock.groupFetchAllParticipating();
-
-        if (participating[groupJid]) {
-          console.log(`[auto-join] (${code}) Already a member.`);
-          joinedMap[code] = new Date().toISOString();
-          fs.writeFileSync(JOIN_MARKER_PATH, JSON.stringify(joinedMap, null, 2));
-          return;
+        let joinedMap = {};
+        try {
+            joinedMap = JSON.parse(fs.readFileSync(this.joinMarkerPath, 'utf8'));
+        } catch (_) {
+            joinedMap = {};
         }
-      }
 
-      console.log(`[auto-join] (${code}) Not a member. Joining...`);
-      await sock.groupAcceptInvite(code);
-
-      console.log(`[auto-join] (${code}) Joined successfully.`);
-      joinedMap[code] = new Date().toISOString();
-      fs.writeFileSync(JOIN_MARKER_PATH, JSON.stringify(joinedMap, null, 2));
-
-      return;
-    } catch (err) {
-      console.error(`[auto-join] (${code}) Attempt ${attempt} failed:`, err?.message || err);
-
-      if (attempt < 3) {
-        await delay(5000);
-      }
+        for (const code of this.groupInviteCodes) {
+            if (joinedMap[code]) continue;
+            await this.joinOneGroup(sock, code, joinedMap);
+        }
     }
-  }
 
-  console.warn(`[auto-join] (${code}) Failed to join after 3 attempts. Will try again on the next restart.`);
+    async joinOneGroup(sock, code, joinedMap) {
+        for (let attempt = 1; attempt <= 3; attempt++) {
+            try {
+                const inviteInfo = await sock.groupGetInviteInfo(code);
+                const groupJid = inviteInfo?.id;
 
-  try {
-    const selfJid = sock.user?.id ? jidNormalizedUser(sock.user.id) : null;
+                if (groupJid) {
+                    const participating = await sock.groupFetchAllParticipating();
+                    if (participating[groupJid]) {
+                        joinedMap[code] = new Date().toISOString();
+                        fs.writeFileSync(this.joinMarkerPath, JSON.stringify(joinedMap, null, 2));
+                        return;
+                    }
+                }
 
-    if (selfJid) {
-      const inviteLink = `https://chat.whatsapp.com/${code}`;
-      await sock.sendMessage(selfJid, {
-        text:
-          `⚠️ *Auto-join failed*\n\n` +
-          `MESH-TECH-MD could not automatically join a group after 3 attempts ` +
-          `(reason: account_reachout_restricted or similar).\n\n` +
-          `Please join manually using this link:\n${inviteLink}`,
-      });
-      console.log(`[auto-join] (${code}) Sent manual-join notice to owner.`);
-    } else {
-      console.warn('[auto-join] Could not resolve self JID — skipping owner notification.');
+                await sock.groupAcceptInvite(code);
+                joinedMap[code] = new Date().toISOString();
+                fs.writeFileSync(this.joinMarkerPath, JSON.stringify(joinedMap, null, 2));
+                return;
+            } catch (err) {
+                if (attempt < 3) await new Promise(r => setTimeout(r, 5000));
+            }
+        }
+
+        try {
+            const selfJid = sock.user?.id ? jidNormalizedUser(sock.user.id) : null;
+            if (selfJid) {
+                const inviteLink = `https://chat.whatsapp.com/${code}`;
+                await sock.sendMessage(selfJid, {
+                    text: `⚠️ *Auto-join failed*\n\nPlease join manually: ${inviteLink}`
+                });
+            }
+        } catch (_) {}
     }
-  } catch (notifyErr) {
-    console.error(`[auto-join] (${code}) Failed to send owner notification:`, notifyErr?.message || notifyErr);
-  }
 }
 
-module.exports = { autoJoinGroupOnce };
+module.exports = AutoJoiner;

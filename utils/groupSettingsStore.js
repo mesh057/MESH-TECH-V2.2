@@ -1,73 +1,97 @@
 const fs = require('fs');
 const path = require('path');
+const { getContext } = require('./context');
 
-const DATA_PATH = path.join(__dirname, '../config/groupSettings.json');
-const USE_DB = !!process.env.DATABASE_URL;
-
-let db = null;
-if (USE_DB) {
-    db = require('./db');
-}
-
-function loadFromDisk() {
-    try {
-        if (!fs.existsSync(DATA_PATH)) return {};
-        return JSON.parse(fs.readFileSync(DATA_PATH, 'utf8'));
-    } catch {
-        return {};
+class GroupSettingsStore {
+    constructor(dataDir, ownerJid = 'default') {
+        this.dataDir = dataDir;
+        this.ownerJid = ownerJid;
+        this.dataPath = path.join(dataDir, 'groupSettings.json');
+        this.useDb = !!process.env.DATABASE_URL;
+        this.state = {};
+        this.ready = this.init();
     }
-}
 
-function saveToDisk(currentState) {
-    try {
-        fs.mkdirSync(path.dirname(DATA_PATH), { recursive: true });
-        fs.writeFileSync(DATA_PATH, JSON.stringify(currentState, null, 2));
-    } catch (err) {
-        console.error('[groupSettingsStore] Failed to save to disk:', err.message);
-    }
-}
-
-let state = USE_DB ? {} : loadFromDisk();
-
-const ready = USE_DB
-    ? db.ensureSchema()
-        .then(async () => {
-            const { rows } = await db.query('SELECT jid, key, value FROM group_settings');
-            for (const row of rows) {
-                if (!state[row.jid]) state[row.jid] = {};
-                state[row.jid][row.key] = row.value;
+    async init() {
+        if (this.useDb) {
+            try {
+                const db = require('./db');
+                await db.query(`
+                    CREATE TABLE IF NOT EXISTS group_settings (
+                        owner_jid TEXT NOT NULL,
+                        jid       TEXT NOT NULL,
+                        key       TEXT NOT NULL,
+                        value     JSONB NOT NULL,
+                        PRIMARY KEY (owner_jid, jid, key)
+                    );
+                `);
+                const { rows } = await db.query(
+                    'SELECT jid, key, value FROM group_settings WHERE owner_jid = $1',
+                    [this.ownerJid]
+                );
+                for (const row of rows) {
+                    if (!this.state[row.jid]) this.state[row.jid] = {};
+                    this.state[row.jid][row.key] = row.value;
+                }
+            } catch (err) {
+                this.state = this.loadFromDisk();
             }
-            console.log('✅ groupSettingsStore: loaded settings from PostgreSQL');
-        })
-        .catch((err) => {
-            console.error('[groupSettingsStore] Failed to load from PostgreSQL, falling back to disk cache:', err.message);
-            state = loadFromDisk();
-        })
-    : Promise.resolve();
+        } else {
+            this.state = this.loadFromDisk();
+        }
+    }
 
-function get(jid, key, fallback = undefined) {
-    return state[jid] && key in state[jid] ? state[jid][key] : fallback;
-}
+    loadFromDisk() {
+        try {
+            if (!fs.existsSync(this.dataPath)) return {};
+            return JSON.parse(fs.readFileSync(this.dataPath, 'utf8'));
+        } catch {
+            return {};
+        }
+    }
 
-function getAll(jid) {
-    return { ...(state[jid] || {}) };
-}
+    saveToDisk() {
+        try {
+            fs.mkdirSync(path.dirname(this.dataPath), { recursive: true });
+            fs.writeFileSync(this.dataPath, JSON.stringify(this.state, null, 2));
+        } catch (err) {}
+    }
 
-function set(jid, key, value) {
-    if (!state[jid]) state[jid] = {};
-    state[jid][key] = value;
+    get(jid, key, fallback = undefined) {
+        return this.state[jid] && key in this.state[jid] ? this.state[jid][key] : fallback;
+    }
 
-    if (USE_DB) {
-        db.query(
-            `INSERT INTO group_settings (jid, key, value) VALUES ($1, $2, $3)
-             ON CONFLICT (jid, key) DO UPDATE SET value = EXCLUDED.value`,
-            [jid, key, JSON.stringify(value)]
-        ).catch((err) => {
-            console.error('[groupSettingsStore] Failed to persist to PostgreSQL:', err.message);
-        });
-    } else {
-        saveToDisk(state);
+    set(jid, key, value) {
+        if (!this.state[jid]) this.state[jid] = {};
+        this.state[jid][key] = value;
+
+        if (this.useDb) {
+            const db = require('./db');
+            db.query(
+                `INSERT INTO group_settings (owner_jid, jid, key, value)
+                 VALUES ($1, $2, $3, $4)
+                 ON CONFLICT (owner_jid, jid, key) DO UPDATE SET value = EXCLUDED.value`,
+                [this.ownerJid, jid, key, JSON.stringify(value)]
+            ).catch(() => {});
+        } else {
+            this.saveToDisk();
+        }
     }
 }
 
-module.exports = { get, set, getAll, ready };
+const proxy = {
+    get: (jid, key, fallback) => {
+        const ctx = getContext();
+        if (ctx && ctx.groupSettings) return ctx.groupSettings.get(jid, key, fallback);
+        return global.mainGroupSettings ? global.mainGroupSettings.get(jid, key, fallback) : fallback;
+    },
+    set: (jid, key, value) => {
+        const ctx = getContext();
+        if (ctx && ctx.groupSettings) return ctx.groupSettings.set(jid, key, value);
+        if (global.mainGroupSettings) return global.mainGroupSettings.set(jid, key, value);
+    },
+    ready: Promise.resolve()
+};
+
+module.exports = GroupSettingsStore;
+Object.assign(module.exports, proxy);

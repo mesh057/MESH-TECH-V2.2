@@ -1,24 +1,30 @@
-const CACHE_LIMIT = 500;
-const cache = new Map(); // key: `${remoteJid}:${id}` -> { type, text, rawMessage, senderJid, timestamp }
+'use strict';
 
-function set(remoteJid, id, data) {
-  const key = `${remoteJid}:${id}`;
-  cache.set(key, { ...data, timestamp: Date.now() });
+class MessageCache {
+    constructor(maxSize = 1000) {
+        this.maxSize = maxSize;
+        this.cache = new Map();
+    }
 
-  if (cache.size > CACHE_LIMIT) {
-    const oldestKey = cache.keys().next().value;
-    cache.delete(oldestKey);
-  }
+    set(jid, id, data) {
+        const key = \`\${jid}:\${id}\`;
+        this.cache.set(key, { ...data, timestamp: Date.now() });
+        
+        if (this.cache.size > this.maxSize) {
+            const oldestKey = this.cache.keys().next().value;
+            this.cache.delete(oldestKey);
+        }
+    }
+
+    get(jid, id) {
+        return this.cache.get(\`\${jid}:\${id}\`);
+    }
+
+    clear() {
+        const size = this.cache.size;
+        this.cache.clear();
+        return size;
+    }
 }
 
-function get(remoteJid, id) {
-  return cache.get(`${remoteJid}:${id}`) || null;
-}
-
-function clear() {
-  const size = cache.size;
-  cache.clear();
-  return size;
-}
-
-module.exports = { set, get, clear };
+module.exports = MessageCache;

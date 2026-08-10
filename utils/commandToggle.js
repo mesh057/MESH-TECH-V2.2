@@ -1,45 +1,43 @@
 'use strict';
 
-const settingsStore = require('./settingsStore');
+class CommandToggle {
+    constructor(settingsStore) {
+        this.settingsStore = settingsStore;
+        this.DISABLED_KEY = 'disabledCommands';
+    }
 
-const DISABLED_KEY = 'disabledCommands';
+    normalizeCommandName(value) {
+        return String(value || '')
+            .trim()
+            .replace(/^[.!#/]+/, '')
+            .toLowerCase();
+    }
 
-function normalizeCommandName(value) {
-  return String(value || '')
-    .trim()
-    .replace(/^[.!#/]+/, '')
-    .toLowerCase();
+    getDisabledCommands() {
+        const raw = this.settingsStore.get(this.DISABLED_KEY, []);
+        if (!Array.isArray(raw)) return new Set();
+        return new Set(raw.map(this.normalizeCommandName).filter(Boolean));
+    }
+
+    isDisabled(name) {
+        return this.getDisabledCommands().has(this.normalizeCommandName(name));
+    }
+
+    setDisabled(name, disabled) {
+        const normalized = this.normalizeCommandName(name);
+        if (!normalized) return false;
+
+        const disabledCommands = this.getDisabledCommands();
+        if (disabled) disabledCommands.add(normalized);
+        else disabledCommands.delete(normalized);
+
+        this.settingsStore.set(this.DISABLED_KEY, [...disabledCommands].sort());
+        return true;
+    }
+
+    listDisabled() {
+        return [...this.getDisabledCommands()].sort();
+    }
 }
 
-function getDisabledCommands() {
-  const raw = settingsStore.get(DISABLED_KEY, []);
-  if (!Array.isArray(raw)) return new Set();
-  return new Set(raw.map(normalizeCommandName).filter(Boolean));
-}
-
-function isDisabled(name) {
-  return getDisabledCommands().has(normalizeCommandName(name));
-}
-
-function setDisabled(name, disabled) {
-  const normalized = normalizeCommandName(name);
-  if (!normalized) return false;
-
-  const disabledCommands = getDisabledCommands();
-  if (disabled) disabledCommands.add(normalized);
-  else disabledCommands.delete(normalized);
-
-  settingsStore.set(DISABLED_KEY, [...disabledCommands].sort());
-  return true;
-}
-
-function listDisabled() {
-  return [...getDisabledCommands()].sort();
-}
-
-module.exports = {
-  normalizeCommandName,
-  isDisabled,
-  setDisabled,
-  listDisabled,
-};
+module.exports = CommandToggle;

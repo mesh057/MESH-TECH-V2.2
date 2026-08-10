@@ -1,31 +1,13 @@
+'use strict';
+
 const { proto, downloadMediaMessage } = require('@whiskeysockets/baileys');
 const config = require('../config/config');
-const logger = require('../utils/logger');
-const settingsStore = require('../utils/settingsStore');
-const groupSettingsStore = require('../utils/groupSettingsStore');
 const fs = require('fs');
 const path = require('path');
-const cutoffFile = path.join(__dirname, '../auth_info_baileys/.first_boot_cutoff');
-const { isDisabled } = require('../utils/commandToggle');
-
-let CUTOFF_TIME;
-try {
-  CUTOFF_TIME = Number(fs.readFileSync(cutoffFile, 'utf8').trim());
-  if (!CUTOFF_TIME) throw new Error('invalid cutoff value');
-} catch {
-  // First boot ever (or file missing/corrupt) — set and persist the cutoff now
-  CUTOFF_TIME = Math.floor(Date.now() / 1000);
-  try {
-    fs.mkdirSync(path.dirname(cutoffFile), { recursive: true });
-    fs.writeFileSync(cutoffFile, String(CUTOFF_TIME));
-  } catch (e) {
-    logger.error(`[cutoff] Failed to persist first-boot cutoff: ${e.message}`);
-  }
-}
+const { runWithContext } = require('../utils/context');
 
 function extractMessageText(message) {
   if (!message) return '';
-
   return (
     message.conversation ||
     message.extendedTextMessage?.text ||
@@ -35,9 +17,12 @@ function extractMessageText(message) {
   );
 }
 
-const invitedUsers = new Set();
+function registerMessageHandler(sock, commands, resources) {
+  const { settings, groupSettings, messageCache, commandToggle, logger } = resources;
+  
+  // Per-instance cutoff to avoid processing old messages
+  const CUTOFF_TIME = Math.floor(Date.now() / 1000);
 
-function registerMessageHandler(sock, commands) {
   sock.ev.on('messages.upsert', async ({ messages, type }) => {
     if (type !== 'notify') return;
 
@@ -45,563 +30,90 @@ function registerMessageHandler(sock, commands) {
       try {
         if (!msg.message) continue;
 
-        /* ── Real-time active user tracking (used by menu/status) ── */
-        try {
-          const { recordActivity, getActiveUsers } = require('../utils/activeTracker');
-          const senderJid = msg.key.participant || msg.key.remoteJid;
-          recordActivity(senderJid);
-          const recent = getActiveUsers(300);
-          global.activeUserCount = recent.length;
-
-          /* ── Auto Invite Feature (opt-in only, controlled by .autoinvite command) ── */
-          // Auto-invite is disabled by default to protect user privacy.
-          // Enable it by setting the 'autoinvite' setting to true via the bot owner.
-        } catch (e) {
-          logger.error(`[activeTracker/autoinvite] ${e.message}`);
-        }
-
-        // Skip anything sent before the bot's very first boot (link-to-deploy gap only)
         const msgTimestamp = Number(msg.messageTimestamp);
         if (msgTimestamp && msgTimestamp < CUTOFF_TIME) continue;
 
-            if (msg.key.remoteJid.endsWith('@g.us')) {
-              const groupSettingsStore = require('../utils/groupSettingsStore');
-              const antigmMode = groupSettingsStore.get(msg.key.remoteJid, 'antigm', 'off');
-
-              if (antigmMode !== 'off' && msg.message?.groupStatusMentionMessage) {
-                const { isOwner } = require('../utils/isOwner');
-                const { isBotAdmin, isSenderAdmin } = require('../utils/isAdmin');
-                const senderJid = msg.key.participant || msg.key.remoteJid;
-
-                if (!isOwner(msg)) {
-                  const metadata = await sock.groupMetadata(msg.key.remoteJid);
-                  if (!isSenderAdmin(metadata, senderJid) && isBotAdmin(sock, metadata)) {
-                    try {
-                      await sock.sendMessage(msg.key.remoteJid, { delete: msg.key });
-
-                      if (antigmMode === 'kick') {
-                        await sock.groupParticipantsUpdate(msg.key.remoteJid, [senderJid], 'remove');
-                        await sock.sendMessage(msg.key.remoteJid, {
-                          text: `status mention detected!!! @${senderJid.split('@')[0]} kicked 🚫`,
-                          mentions: [senderJid],
-                        });
-                      } else if (antigmMode === 'warn') {
-                        const { addWarning, resetWarnings } = require('../utils/warnings');
-                        const count = addWarning(msg.key.remoteJid, senderJid);
-
-                        if (count >= 3) {
-                          resetWarnings(msg.key.remoteJid, senderJid);
-                          await sock.groupParticipantsUpdate(msg.key.remoteJid, [senderJid], 'remove');
-                          await sock.sendMessage(msg.key.remoteJid, {
-                            text: `status mention detected!!! @${senderJid.split('@')[0]} kicked 🚫`,
-                            mentions: [senderJid],
-                          });
-                        } else {
-                          await sock.sendMessage(msg.key.remoteJid, {
-                            text: `⚠️WARNING⚠️\n*User :* @${senderJid.split('@')[0]}\n*Warn :* ${count}\n*Remaining :* ${3 - count}`,
-                            mentions: [senderJid],
-                          });
-                        }
-                      }
-                    } catch (e) {
-                      logger.error(`[antigm] Failed to delete/act: ${e.message}`);
-                    }
-                    continue;
-                  }
-                }
-              }
-            }
-
-
-        const prefix = settingsStore.get('prefix', config.prefix);
-        const workType = settingsStore.get('mode', config.WORK_TYPE);
-
-        if (msg.key.remoteJid !== 'status@broadcast' && !msg.key.fromMe) {
-          if (settingsStore.get('autoread', false)) {
-            try {
-              await sock.readMessages([msg.key]);
-            } catch (e) {
-              logger.error(`[autoread] Failed to mark message read: ${e.message}`);
-            }
-          }
+        const senderJid = msg.key.participant || msg.key.remoteJid;
+        const isMe = msg.key.fromMe;
+        
+        // Record activity
+        if (resources.activeTracker) {
+            resources.activeTracker.recordActivity(senderJid);
+            global.activeUserCount = resources.activeTracker.getActiveUsers(300).length;
         }
-
-          if (msg.key.remoteJid === 'status@broadcast') {
-                if (settingsStore.get('autoview', true) || settingsStore.get('autostatus', false)) {
-                  try {
-                    await sock.readMessages([msg.key]);
-                  } catch (e) {
-                    logger.error(`[autoview] Failed to mark status viewed: ${e.message}`);
-                  }
-                }
-
-                if (settingsStore.get('autolike', false) && msg.key.participant) {
-                  try {
-                    const AUTOLIKE_EMOJIS = ['💀', '😈', '😡', '😂', '☺️', '🙂‍↔️', '☠️', '💯', '❤️', '👀', '🤌', '🫵', '🤙'];
-                    const randomEmoji = AUTOLIKE_EMOJIS[Math.floor(Math.random() * AUTOLIKE_EMOJIS.length)];
-
-                    await sock.sendMessage(
-                      'status@broadcast',
-                      { react: { text: randomEmoji, key: msg.key } },
-                      { statusJidList: [msg.key.participant] }
-                    );
-                  } catch (e) {
-                    logger.error(`[autolike] Failed to react to status: ${e.message}`);
-                  }
-                }
-                continue;
-              }
-
-          if (msg.message.protocolMessage?.type === proto.Message.ProtocolMessage.Type.REVOKE) {
-            if (settingsStore.get('antidelete', false)) {
-              const { jidNormalizedUser } = require('@whiskeysockets/baileys');
-              const messageCache = require('../utils/messageCache');
-              const originalKey = msg.message.protocolMessage.key;
-              const cached = messageCache.get(msg.key.remoteJid, originalKey?.id);
-
-              const dest = settingsStore.get('antideleteDest', 'p');
-              const targetJid = dest === 'g'
-                ? msg.key.remoteJid
-                : (sock.user?.id ? jidNormalizedUser(sock.user.id) : msg.key.remoteJid);
-
-              if (cached) {
-                try {
-                  const senderTag = cached.senderJid ? `@${cached.senderJid.split('@')[0]}` : 'someone';
-                  const header = `🗑️ *Antidelete* — ${senderTag} deleted a message:`;
-                  const locationLine = dest === 'p' ? `\n📍 *Chat:* ${msg.key.remoteJid}` : '';
-
-                  if (cached.type === 'text') {
-                    await sock.sendMessage(targetJid, {
-                      text: `${header}${locationLine}\n\n${cached.text}`,
-                      mentions: cached.senderJid ? [cached.senderJid] : [],
-                    });
-                  } else if (cached.type === 'image' || cached.type === 'video') {
-                    const buffer = await downloadMediaMessage({ message: cached.rawMessage }, 'buffer', {});
-                    const payload = cached.type === 'image' ? { image: buffer } : { video: buffer };
-                    await sock.sendMessage(targetJid, {
-                      ...payload,
-                      caption: `${header}${locationLine}${cached.text ? '\n\n' + cached.text : ''}`,
-                      mentions: cached.senderJid ? [cached.senderJid] : [],
-                    });
-                  }
-                } catch (e) {
-                  logger.error(`[antidelete] Failed to resend deleted message: ${e.message}`);
-                }
-              }
-            }
-            continue;
-          }
-
-          if (msg.message.protocolMessage?.type === proto.Message.ProtocolMessage.Type.MESSAGE_EDIT) {
-            if (settingsStore.get('antiedit', false)) {
-              const { jidNormalizedUser } = require('@whiskeysockets/baileys');
-              const messageCache = require('../utils/messageCache');
-              const originalKey = msg.message.protocolMessage.key;
-              const cached = messageCache.get(msg.key.remoteJid, originalKey?.id);
-
-              const newText = extractMessageText(msg.message.protocolMessage.editedMessage);
-
-              const dest = settingsStore.get('antieditDest', 'p');
-              const targetJid = dest === 'g'
-                ? msg.key.remoteJid
-                : (sock.user?.id ? jidNormalizedUser(sock.user.id) : msg.key.remoteJid);
-
-              if (cached && newText) {
-                try {
-                  const senderTag = cached.senderJid ? `@${cached.senderJid.split('@')[0]}` : 'someone';
-                  const locationLine = dest === 'p' ? `\n📍 *Chat:* ${msg.key.remoteJid}` : '';
-
-                  await sock.sendMessage(targetJid, {
-                    text: `✏️ *Antidelete (edit)* — ${senderTag} edited a message:${locationLine}\n\n*Before:*\n${cached.text}\n\n*After:*\n${newText}`,
-                    mentions: cached.senderJid ? [cached.senderJid] : [],
-                  });
-                } catch (e) {
-                  logger.error(`[antidelete edit] Failed to send edit notice: ${e.message}`);
-                }
-              }
-            }
-            continue;
-          }
-
-            try {
-              const messageCache = require('../utils/messageCache');
-              const senderJid = msg.key.participant || msg.key.remoteJid;
-              const m = msg.message;
-
-              if (m.imageMessage) {
-                messageCache.set(msg.key.remoteJid, msg.key.id, {
-                  type: 'image',
-                  text: m.imageMessage.caption || '',
-                  rawMessage: { imageMessage: m.imageMessage },
-                  senderJid,
-                });
-              } else if (m.videoMessage) {
-                messageCache.set(msg.key.remoteJid, msg.key.id, {
-                  type: 'video',
-                  text: m.videoMessage.caption || '',
-                  rawMessage: { videoMessage: m.videoMessage },
-                  senderJid,
-                });
-              } else {
-                const plainText = m.conversation || m.extendedTextMessage?.text || '';
-                if (plainText) {
-                  messageCache.set(msg.key.remoteJid, msg.key.id, { type: 'text', text: plainText, senderJid });
-                }
-              }
-            } catch (e) {
-              logger.error(`[antidelete cache] ${e.message}`);
-            }
-
-          if (settingsStore.get('autotyping', false)) {
-              await sock.sendPresenceUpdate('composing', msg.key.remoteJid);
-          }
-          if (settingsStore.get('autorecording', false)) {
-              await sock.sendPresenceUpdate('recording', msg.key.remoteJid);
-          }
-
-          /* ── Auto react to every incoming message (status toggle) ── */
-          if (settingsStore.get('autoreact', false)) {
-            try {
-              const REACT_EMOJIS = ['❤️', '🔥', '😂', '👍', '💯', '🙌', '✨', '🤩'];
-              const randomEmoji = REACT_EMOJIS[Math.floor(Math.random() * REACT_EMOJIS.length)];
-              await sock.sendMessage(msg.key.remoteJid, { react: { text: randomEmoji, key: msg.key } }, { statusJidList: msg.key.remoteJid === 'status@broadcast' ? [msg.key.participant] : undefined });
-            } catch (e) {
-              logger.error(`[autoreact] Failed to react: ${e.message}`);
-            }
-          }
+        
+        // Settings & Logic
+        const prefix = settings.get('prefix', config.prefix);
+        const mode = settings.get('mode', config.WORK_TYPE); // 'public' or 'private'
+        
+        if (mode === 'private' && !isMe) continue;
 
         const text = extractMessageText(msg.message).trim();
-if (!text) continue;
-
-          /* ── Anti-bug: remove members sending oversized/bug messages (per-group toggle) ── */
-          if (msg.key.remoteJid.endsWith('@g.us')) {
-            try {
-              const antibugOn = settingsStore.get(`antibug_${msg.key.remoteJid}`, false);
-              if (antibugOn) {
-                const bugChars = (text.match(/[\u0300-\u036f\u20d0-\u20ff\ufe00-\ufe0f]/g) || []).length;
-                if (text.length > 4000 || bugChars > 200) {
-                  const senderJid = msg.key.participant || msg.key.remoteJid;
-                  const metadata = await sock.groupMetadata(msg.key.remoteJid);
-                  const { isSenderAdmin, isBotAdmin } = require('../utils/isAdmin');
-                  if (!isSenderAdmin(metadata, senderJid) && isBotAdmin(sock, metadata)) {
-                    try { await sock.sendMessage(msg.key.remoteJid, { delete: msg.key }); } catch {}
-                    try {
-                      await sock.groupParticipantsUpdate(msg.key.remoteJid, [senderJid], 'remove');
-                      await sock.sendMessage(msg.key.remoteJid, { text: `🛡️🚫 @${senderJid.split('@')[0]} removed for sending a bug message.`, mentions: [senderJid] });
-                    } catch (e) {
-                      logger.error(`[antibug] Failed to remove sender: ${e.message}`);
-                      await sock.sendMessage(msg.key.remoteJid, { text: `🛡️ Bug message deleted from @${senderJid.split('@')[0]}.`, mentions: [senderJid] });
-                    }
-                    continue;
-                  }
-                }
-              }
-            } catch (e) {
-              logger.error(`[antibug] ${e.message}`);
-            }
-          }
-
-          if (msg.key.remoteJid.endsWith('@g.us')) {
-              let antilinkMode = groupSettingsStore.get(msg.key.remoteJid, 'antilink', 'off');
-              if (settingsStore.get(`antilinkick_${msg.key.remoteJid}`, false) && antilinkMode === 'off') {
-                antilinkMode = 'kick';
-              }
-              if (settingsStore.get('antilinkall', false) && antilinkMode === 'off') {
-                antilinkMode = 'on';
-              }
-
-            const linkRegex = /(https?:\/\/|www\.|chat\.whatsapp\.com\/|wa\.me\/)\S+/i;
-
-            if (antilinkMode !== 'off' && linkRegex.test(text)) {
-              const { isBotAdmin, isSenderAdmin } = require('../utils/isAdmin');
-              const metadata = await sock.groupMetadata(msg.key.remoteJid);
-              const senderJid = msg.key.participant || msg.key.remoteJid;
-
-              if (!isSenderAdmin(metadata, senderJid)) {
-                if (isBotAdmin(sock, metadata)) {
-                  try {
-                    await sock.sendMessage(msg.key.remoteJid, { delete: msg.key });
-                  } catch (e) {
-                    logger.error(`[antilink] Failed to delete message: ${e.message}`);
-                  }
-
-                  if (antilinkMode === 'kick') {
-                    try {
-                      await sock.groupParticipantsUpdate(msg.key.remoteJid, [senderJid], 'remove');
-                      await sock.sendMessage(
-                        msg.key.remoteJid,
-                        { text: `🔗🚫 @${senderJid.split('@')[0]} kicked for sending a link.`, mentions: [senderJid] }
-                      );
-                    } catch (e) {
-                      logger.error(`[antilink] Failed to kick sender: ${e.message}`);
-                      await sock.sendMessage(
-                        msg.key.remoteJid,
-                        { text: `🔗 Link deleted from @${senderJid.split('@')[0]}, but I couldn't remove them.`, mentions: [senderJid] }
-                      );
-                    }
-                  } else if (antilinkMode === 'warn') {
-                    const { addWarning, resetWarnings } = require('../utils/warnings');
-                    const count = addWarning(msg.key.remoteJid, senderJid);
-                    if (count >= 3) {
-                      resetWarnings(msg.key.remoteJid, senderJid);
-                      try {
-                        await sock.groupParticipantsUpdate(msg.key.remoteJid, [senderJid], 'remove');
-                        await sock.sendMessage(msg.key.remoteJid, {
-                          text: `🔗🚫 @${senderJid.split('@')[0]} kicked after 3 warnings for sending links.`,
-                          mentions: [senderJid],
-                        });
-                      } catch (e) {
-                        logger.error(`[antilink] Failed to kick after warnings: ${e.message}`);
-                      }
-                    } else {
-                      await sock.sendMessage(msg.key.remoteJid, {
-                        text: `⚠️ Link deleted.\n*User:* @${senderJid.split('@')[0]}\n*Warn:* ${count}\n*Remaining:* ${3 - count}`,
-                        mentions: [senderJid],
-                      });
-                    }
-                  }
-                }
-                continue;
-              }
-            }
-          }
-            if (msg.key.remoteJid.endsWith('@g.us')) {
-              if (settingsStore.get('antibot', false)) {
-                const botPrefixPattern = /^[.\/!#]/;
-                if (botPrefixPattern.test(text) && !msg.key.fromMe) {
-                  const { isOwner } = require('../utils/isOwner');
-                  const { isBotAdmin, isSenderAdmin } = require('../utils/isAdmin');
-                  const senderJid = msg.key.participant || msg.key.remoteJid;
-
-                  if (!isOwner(msg)) {
-                    const metadata = await sock.groupMetadata(msg.key.remoteJid);
-                    if (!isSenderAdmin(metadata, senderJid) && isBotAdmin(sock, metadata)) {
-                      try {
-                        await sock.groupParticipantsUpdate(msg.key.remoteJid, [senderJid], 'remove');
-                        await sock.sendMessage(msg.key.remoteJid, {
-                          text: `🤖 Bot detected @${senderJid.split('@')[0]}, kicked.`,
-                          mentions: [senderJid],
-                        });
-                      } catch (e) {
-                        logger.error(`[antibot] Failed to kick: ${e.message}`);
-                      }
-                      continue;
-                    }
-                  }
-                }
-              }
-            }
-
-
-        if (!text) continue;
-            if (msg.key.remoteJid.endsWith('@g.us')) {
-              if (settingsStore.get('antitag', false)) {
-                const mentionedJid = msg.message?.extendedTextMessage?.contextInfo?.mentionedJid || [];
-                const TAG_THRESHOLD = 5;
-
-                if (mentionedJid.length > TAG_THRESHOLD) {
-                  const { isOwner } = require('../utils/isOwner');
-                  const { isBotAdmin, isSenderAdmin } = require('../utils/isAdmin');
-                  const senderJid = msg.key.participant || msg.key.remoteJid;
-
-                  if (!isOwner(msg)) {
-                    const metadata = await sock.groupMetadata(msg.key.remoteJid);
-                    if (!isSenderAdmin(metadata, senderJid) && isBotAdmin(sock, metadata)) {
-                      try {
-                        await sock.sendMessage(msg.key.remoteJid, { delete: msg.key });
-                        await sock.sendMessage(msg.key.remoteJid, {
-                          text: `🏷️ Mass-tag message deleted from @${senderJid.split('@')[0]}.`,
-                          mentions: [senderJid],
-                        });
-                      } catch (e) {
-                        logger.error(`[antitag] Failed to delete: ${e.message}`);
-                      }
-                      continue;
-                    }
-                  }
-                }
-              }
-            }
-            if (msg.key.remoteJid.endsWith('@g.us')) {
-              if (settingsStore.get('badword', false)) {
-                const fs = require('fs');
-                const path = require('path');
-                const listPath = path.join(__dirname, '../config/badwords.json');
-                const badwords = fs.existsSync(listPath) ? JSON.parse(fs.readFileSync(listPath, 'utf8')) : [];
-
-                const lowerText = text.toLowerCase();
-                const matched = badwords.some((word) => new RegExp(`\\b${word}\\b`, 'i').test(lowerText));
-
-                if (matched) {
-                  const { isOwner } = require('../utils/isOwner');
-                  const { isBotAdmin, isSenderAdmin } = require('../utils/isAdmin');
-                  const senderJid = msg.key.participant || msg.key.remoteJid;
-
-                  if (!isOwner(msg)) {
-                    const metadata = await sock.groupMetadata(msg.key.remoteJid);
-                    if (!isSenderAdmin(metadata, senderJid) && isBotAdmin(sock, metadata)) {
-                      try {
-                        await sock.sendMessage(msg.key.remoteJid, { delete: msg.key });
-                        await sock.groupParticipantsUpdate(msg.key.remoteJid, [senderJid], 'remove');
-                        await sock.sendMessage(msg.key.remoteJid, {
-                          text: `🚫 @${senderJid.split('@')[0]} kicked for using a banned word.`,
-                          mentions: [senderJid],
-                        });
-                      } catch (e) {
-                        logger.error(`[badword] Failed to delete/kick: ${e.message}`);
-                      }
-                      continue;
-                    }
-                  }
-                }
-              }
-            }
-        if (msg.key.fromMe && !text.startsWith(prefix)) continue;
-        if (config.debugMessages) {
-          logger.info(`[message] ${msg.key.remoteJid}: ${text}`);
-        }
-
-          if (!text.startsWith(prefix)) {
-            // No-prefix triggers (e.g. emoji-only commands like vv2) —
-            // checked first so they don't fall through to autoreply/lydia/gptdm.
-            let noPrefixCommand = null;
-            for (const cmd of new Set(commands.values())) {
-              if (Array.isArray(cmd.noprefix) && cmd.noprefix.includes(text)) {
-                noPrefixCommand = cmd;
-                break;
-              }
-            }
-            if (noPrefixCommand) {
-              if (isDisabled(noPrefixCommand.name)) continue;
-              if (workType === 'private' && !msg.key.fromMe) {
-                const { isSudo } = require('../utils/isSudo');
-                if (!isSudo(msg)) continue;
-              }
-              await noPrefixCommand.execute(sock, msg, [], commands);
-              continue;
-            }
-
-            const lydiaStore = require('../utils/lydiaStore');
-            const senderJid = msg.key.participant || msg.key.remoteJid;
-            if (lydiaStore.isEnabled(msg.key.remoteJid, senderJid)) {
-              const { getLydiaReply } = require('../utils/lydiaChat');
-              const reply = await getLydiaReply(text);
-              if (reply) {
-                await sock.sendMessage(msg.key.remoteJid, { text: reply }, { quoted: msg });
-              }
-              continue;
-            }
-              if (!msg.key.remoteJid.endsWith('@g.us')) {
-                if (settingsStore.get('gptdm', false)) {
-                  try {
-                    const https = require('https');
-                    const { KEITH_BASE } = require('../config/apis');
-                    const encoded = encodeURIComponent(text);
-
-                    const reply = await new Promise((resolve, reject) => {
-                      https.get(`${KEITH_BASE}/ai/gpt?q=${encoded}`, (res) => {
-                        let raw = '';
-                        res.on('data', (c) => (raw += c));
-                        res.on('end', () => {
-                          try {
-                            const json = JSON.parse(raw);
-                            if (!json.status) return reject(new Error(json.error || 'API request failed'));
-                            resolve(
-                              json.result
-                                .replace(/Keith AI/gi, 'MESH TECH AI')
-                                .replace(/Keithkeizzah/gi, 'MESH TECH')
-                            );
-                          } catch (e) {
-                            reject(e);
-                          }
-                        });
-                      }).on('error', reject);
-                    });
-
-                    if (reply) {
-                      await sock.sendMessage(msg.key.remoteJid, { text: reply }, { quoted: msg });
-                    }
-                  } catch (e) {
-                    logger.error(`[gptdm] Failed to get Gemini reply: ${e.message}`);
-                  }
-                  continue;
-                }
-              }
-
-            const { activeGames } = require('../commands/game');          const game = activeGames.get(msg.key.remoteJid);
-          if (game && game.type === 'number' && /^\d+$/.test(text)) {
-            const guess = parseInt(text, 10);
-            game.attempts += 1;
-            if (guess === game.target) {
-              activeGames.delete(msg.key.remoteJid);
-              await sock.sendMessage(
-                msg.key.remoteJid,
-                { text: `🎉 Correct! The number was ${game.target}. You got it in ${game.attempts} attempt(s).` },
-                { quoted: msg }
-              );
-            } else if (guess < game.target) {
-              await sock.sendMessage(msg.key.remoteJid, { text: '📈 Higher!' }, { quoted: msg });
-            } else {
-              await sock.sendMessage(msg.key.remoteJid, { text: '📉 Lower!' }, { quoted: msg });
-            }
+        if (!text || !text.startsWith(prefix)) {
+            // Handle non-command logic like antidelete/antiedit/auto-react here
+            await runWithContext(resources, async () => {
+                await handleNonCommandLogic(sock, msg, resources);
+            });
             continue;
-          }
-
-          /* ── Answer checking for flag/math/scramble games ── */
-          try {
-            const { checkAnswer } = require('../commands/games');
-            const result = checkAnswer(msg.key.remoteJid, text);
-            if (result) {
-              if (result.win) {
-                await sock.sendMessage(msg.key.remoteJid, { text: `🎉 *Correct!* The answer was *${result.answer}*. Well played!` }, { quoted: msg });
-              } else {
-                await sock.sendMessage(msg.key.remoteJid, { text: '❌ Wrong answer — try again!' }, { quoted: msg });
-              }
-              continue;
-            }
-          } catch (e) {
-            logger.error(`[games] Answer check error: ${e.message}`);
-          }
-
-          if (settingsStore.get('autoreply', true)) {
-            const { getAutoReply } = require('../utils/autoreply');
-            const autoReplyText = getAutoReply(text);
-            if (autoReplyText) {
-              await sock.sendMessage(msg.key.remoteJid, { text: autoReplyText }, { quoted: msg });
-            }
-          }
-          continue;
         }
 
-        const withoutPrefix = text.slice(prefix.length).trim();
-        const [commandName, ...args] = withoutPrefix.split(/\s+/);
+        const args = text.slice(prefix.length).trim().split(/ +/);
+        const commandName = args.shift().toLowerCase();
+        
+        const cmd = commands.get(commandName);
+        if (!cmd) continue;
 
-
-        const command = commands.get(commandName.toLowerCase());
-
-        if (!command) {
-          continue;
+        if (commandToggle.isDisabled(commandName)) {
+            await sock.sendMessage(msg.key.remoteJid, { text: `❌ Command *${commandName}* is currently disabled.` });
+            continue;
         }
-        const controlCommands = new Set(['enable', 'disable', 'commandstatus', 'cmdon', 'cmdoff', 'cmdstatus']);
-        if (!controlCommands.has(command.name.toLowerCase()) && isDisabled(command.name)) {
-          await sock.sendMessage(msg.key.remoteJid, {
-            text: `⛔ The ${prefix}${command.name} command is currently disabled by the owner.`,
-          }, { quoted: msg });
-          continue;
-        }
-        if (workType === 'private' && !msg.key.fromMe) {
-  const { isSudo } = require('../utils/isSudo');
-  if (!isSudo(msg)) {
-    continue;
-  }
-}
 
-        await command.execute(sock, msg, args, commands, commandName);
-      } catch (error) {
-        logger.error(`[messageHandler] Error processing message: ${error.message}`);
+        logger.info(`[Command] ${commandName} from ${senderJid}`);
+        await runWithContext(resources, async () => {
+            await cmd.execute(sock, msg, args, resources);
+        });
+
+      } catch (err) {
+        logger.error(`[MessageHandler] Error: ${err.message}`);
       }
     }
   });
+}
+
+async function handleNonCommandLogic(sock, msg, resources) {
+    const { settings, messageCache, logger } = resources;
+    const m = msg.message;
+    const jid = msg.key.remoteJid;
+    
+    // Auto Read
+    if (settings.get('autoread', false) && !msg.key.fromMe) {
+        await sock.readMessages([msg.key]).catch(() => {});
+    }
+
+    // Cache message for antidelete/edit
+    try {
+        const senderJid = msg.key.participant || msg.key.remoteJid;
+        if (m.imageMessage) {
+            messageCache.set(jid, msg.key.id, {
+                type: 'image',
+                text: m.imageMessage.caption || '',
+                rawMessage: { imageMessage: m.imageMessage },
+                senderJid,
+            });
+        } else if (m.videoMessage) {
+            messageCache.set(jid, msg.key.id, {
+                type: 'video',
+                text: m.videoMessage.caption || '',
+                rawMessage: { videoMessage: m.videoMessage },
+                senderJid,
+            });
+        } else {
+            const plainText = extractMessageText(m);
+            if (plainText) {
+                messageCache.set(jid, msg.key.id, { type: 'text', text: plainText, senderJid });
+            }
+        }
+    } catch (e) {}
 }
 
 module.exports = { registerMessageHandler };
