@@ -1080,8 +1080,12 @@
                 return;
             }
 
+            // Reuse the manual form's logic
             phoneInput.value = phoneNumber;
-            submitBtn.click();
+            // Switch to manual tab to show results
+            switchTab('manual');
+            // Trigger the form submission
+            form.dispatchEvent(new Event('submit'));
         }
 
         // Check bot status on page load
@@ -1148,7 +1152,7 @@
 
         function pollForCode() {
             let attempts = 0;
-            const maxAttempts = 15;
+            const maxAttempts = 60; // Increased to allow time for user to enter code
 
             const interval = setInterval(async () => {
                 attempts++;
@@ -1156,15 +1160,26 @@
                     const response = await fetch('/api/pairing-code');
                     const data = await response.json();
 
-                    if (data.success && data.code) {
+                    if (data.success) {
+                        if (data.sessionId) {
+                            clearInterval(interval);
+                            showSessionId(data.sessionId);
+                            submitBtn.disabled = false;
+                            btnText.innerHTML = '<i class="fas fa-key"></i> GENERATE CODE';
+                        } else if (data.code && currentCode !== data.code) {
+                            currentCode = data.code;
+                            showSuccess(data.code);
+                            // Don't clear interval, keep polling for sessionId
+                        }
+                    }
+                    
+                    if (attempts >= maxAttempts) {
                         clearInterval(interval);
-                        currentCode = data.code;
-                        showSuccess(data.code);
-                        submitBtn.disabled = false;
-                        btnText.innerHTML = '<i class="fas fa-key"></i> GENERATE CODE';
-                    } else if (attempts >= maxAttempts) {
-                        clearInterval(interval);
-                        showError('PAIRING CODE GENERATION TIMED OUT. PLEASE TRY AGAIN.');
+                        if (!currentCode) {
+                            showError('PAIRING CODE GENERATION TIMED OUT. PLEASE TRY AGAIN.');
+                        } else {
+                            showError('PAIRING TIMED OUT. PLEASE TRY AGAIN.');
+                        }
                         submitBtn.disabled = false;
                         btnText.innerHTML = '<i class="fas fa-key"></i> GENERATE CODE';
                     }
@@ -1176,7 +1191,28 @@
                         btnText.innerHTML = '<i class="fas fa-key"></i> GENERATE CODE';
                     }
                 }
-            }, 1000);
+            }, 2000);
+        }
+
+        function showSessionId(sessionId) {
+            resultSection.className = 'result-section show success';
+            resultTitle.textContent = '✅ LINKED SUCCESSFULLY!';
+            pairingCodeDisplay.innerHTML = `
+                <div class="session-id-container" style="background: rgba(0, 0, 0, 0.3); padding: 15px; border: 1px solid var(--primary); margin: 10px 0; word-break: break-all; font-family: monospace; font-size: 12px; color: var(--primary);">
+                    ${sessionId}
+                </div>
+            `;
+            resultMessage.innerHTML = `
+                <strong>YOUR SESSION_ID IS READY.</strong><br>
+                COPY THIS AND USE IT IN YOUR DEPLOYMENT. TREAT IT LIKE A PASSWORD.
+            `;
+            copyBtn.style.display = 'inline-block';
+            copyBtn.textContent = '📋 COPY SESSION_ID';
+            copyBtn.onclick = () => {
+                navigator.clipboard.writeText(sessionId);
+                copyBtn.textContent = '✓ COPIED!';
+                copyBtn.classList.add('copied');
+            };
         }
 
         function showSuccess(code) {

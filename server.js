@@ -2,102 +2,77 @@
 
 const path = require('path');
 const express = require('express');
+const pairingManager = require('./utils/pairingManager');
 
 const app = express();
 const port = Number(process.env.PORT || 3000);
 const publicDir = __dirname;
 
-let socket = null;
-let connectionState = 'starting';
-let registered = false;
-let pendingCode = null;
-let pendingPhone = null;
-let pendingError = null;
-let codeExpiresAt = 0;
+let lastRequestedPhone = null;
 
 app.disable('x-powered-by');
 app.use(express.json({ limit: '32kb' }));
 app.use(express.static(publicDir, { index: 'pairing.html' }));
 
-function normalizePhoneNumber(value) {
-  return String(value || '').replace(/[^0-9]/g, '');
-}
-
-function setSocket(nextSocket) {
-  socket = nextSocket;
-  registered = Boolean(nextSocket?.user);
-}
-
-function setConnectionState(state, nextRegistered = registered) {
-  connectionState = state || 'unknown';
-  registered = Boolean(nextRegistered);
-  if (state === 'close') socket = null;
-}
-
-async function requestPairingCode(phoneNumber) {
-  const normalized = normalizePhoneNumber(phoneNumber);
-  if (!/^\d{8,15}$/.test(normalized)) {
-    const error = new Error('Enter a valid phone number with country code.');
-    error.statusCode = 400;
-    throw error;
-  }
-  if (!socket) {
-    const error = new Error('The WhatsApp connection is still initializing. Try again shortly.');
-    error.statusCode = 503;
-    throw error;
-  }
-  if (registered) {
-    const error = new Error('This bot is already paired.');
-    error.statusCode = 409;
-    throw error;
-  }
-
-  pendingPhone = normalized;
-  pendingCode = null;
-  pendingError = null;
-  try {
-    pendingCode = await socket.requestPairingCode(normalized);
-    codeExpiresAt = Date.now() + 60 * 1000;
-    return pendingCode;
-  } catch (error) {
-    pendingError = error.message;
-    throw error;
-  }
-}
-
 app.get('/api/status', (_req, res) => {
   res.json({
-    botStatus: connectionState === 'open' ? 'initialized' : connectionState,
-    totalActive: connectionState === 'open' || Boolean(socket) ? 1 : 0,
-    registered,
+    botStatus: 'initialized',
+    totalActive: pairingManager.getActiveCount(),
+    registered: false, // In multi-user mode, the 'main' bot status is less relevant
   });
 });
 
 app.post('/api/request-pairing', async (req, res) => {
   try {
-    await requestPairingCode(req.body?.phoneNumber);
+    const phoneNumber = req.body?.phoneNumber;
+    if (!phoneNumber) {
+      return res.status(400).json({ success: false, error: 'Phone number is required.' });
+    }
+    
+    await pairingManager.startPairing(phoneNumber);
+    lastRequestedPhone = pairingManager.normalizePhoneNumber(phoneNumber);
+    
     res.json({ success: true, message: 'Pairing code requested.' });
   } catch (error) {
-    res.status(error.statusCode || 500).json({ success: false, error: error.message });
+    res.status(400).json({ success: false, error: error.message });
   }
 });
 
-app.get('/api/pairing-code', (_req, res) => {
-  if (pendingCode && Date.now() < codeExpiresAt) {
-    return res.json({ success: true, code: pendingCode, phoneNumber: pendingPhone });
+app.get('/api/pairing-code', (req, res) => {
+  const phoneNumber = req.query.phoneNumber || lastRequestedPhone;
+  if (!phoneNumber) {
+    return res.json({ success: false, error: 'No pairing session active.' });
   }
-  res.json({ success: false, code: null, error: pendingError || 'Pairing code is not ready.' });
+
+  const session = pairingManager.getStatus(phoneNumber);
+  if (!session) {
+    return res.json({ success: false, error: 'Session expired or not found.' });
+  }
+
+  if (session.status === 'error') {
+    return res.json({ success: false, error: session.error });
+  }
+
+  res.json({
+    success: true,
+    status: session.status,
+    code: session.code,
+    phoneNumber: session.number,
+    sessionId: session.sessionId, // This will be present when status is 'success'
+  });
 });
 
 app.get('/health', (_req, res) => res.json({ ok: true }));
 
 const server = app.listen(port, '0.0.0.0', () => {
-  console.log(`[pairing-server] Pairing page available on port ${port}`);
+  console.log(`[pairing-server] Multi-user pairing page available on port ${port}`);
 });
 
 module.exports = {
   app,
   server,
-  setSocket,
-  setConnectionState,
+  // These are kept for backward compatibility with index.js if needed,
+  // but they don't affect the multi-user pairing flow anymore.
+  setSocket: () => {},
+  setConnectionState: () => {},
 };

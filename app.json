@@ -15,12 +15,8 @@
     }
   ],
   "formation": {
-    "worker": {
-      "quantity": 1,
-      "size": "basic"
-    },
     "web": {
-      "quantity": 0,
+      "quantity": 1,
       "size": "basic"
     }
   },
@@ -31,9 +27,9 @@
       "required": true
     },
     "SESSION_ID": {
-      "description": "Your WhatsApp session string, generated at https://kingpin-sjlx.onrender.com (QR CODE or PAIR CODE)",
+      "description": "Your WhatsApp session string, generated via the pairing terminal (QR CODE or PAIR CODE)",
       "value": "",
-      "required": true
+      "required": false
     },
     "PREFIX": {
       "description": "Command prefix for the bot",
