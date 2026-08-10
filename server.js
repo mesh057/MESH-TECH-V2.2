@@ -8,6 +8,10 @@ const app = express();
 const port = Number(process.env.PORT || 3000);
 const publicDir = __dirname;
 
+let botSocket = null;
+let botConnectionState = 'disconnected';
+let isRegistered = false;
+
 // Simple in-memory rate limiter: max 5 pairing requests per IP per minute
 const rateLimitMap = new Map();
 function rateLimit(req, res, next) {
@@ -36,9 +40,9 @@ app.use(express.static(publicDir, { index: 'pairing.html' }));
 
 app.get('/api/status', (_req, res) => {
   res.json({
-    botStatus: 'initialized',
+    botStatus: botConnectionState,
     totalActive: pairingManager.getActiveCount(),
-    registered: false,
+    registered: isRegistered,
   });
 });
 
@@ -95,7 +99,11 @@ const server = app.listen(port, '0.0.0.0', () => {
 module.exports = {
   app,
   server,
-  // Kept for backward compatibility with index.js
-  setSocket: () => {},
-  setConnectionState: () => {},
+  setSocket: (sock) => {
+    botSocket = sock;
+  },
+  setConnectionState: (state, registered) => {
+    botConnectionState = state;
+    isRegistered = registered;
+  },
 };
