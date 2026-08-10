@@ -143,20 +143,7 @@ module.exports = [
       await sock.sendMessage(jid, { text: `📊 *Auto Status Status:* ${status}\nUse \`.autostatus on/off\`.` }, { quoted: msg });
     },
   },
-  {
-    name: 'autoinvite',
-    description: 'Toggle auto-sending official group invite to new users.',
-    category: 'STATUS',
-    async execute(sock, msg, args) {
-      const jid = msg.key.remoteJid;
-      if (!isOwner(msg)) return await sock.sendMessage(jid, { text: '❌ Owner only.' }, { quoted: msg });
-      const settingsStore2 = require('../utils/settingsStore');
-      if (args[0] === 'on') { settingsStore2.set('autoinvite', true); return await sock.sendMessage(jid, { text: '✅ *Auto Invite:* ENABLED 🟢' }, { quoted: msg }); }
-      if (args[0] === 'off') { settingsStore2.set('autoinvite', false); return await sock.sendMessage(jid, { text: '🔴 *Auto Invite:* DISABLED' }, { quoted: msg }); }
-      const status = settingsStore2.get('autoinvite', false) ? 'ENABLED 🟢' : 'DISABLED 🔴';
-      await sock.sendMessage(jid, { text: `📩 *Auto Invite Status:* ${status}\nUse \`.autoinvite on/off\`.` }, { quoted: msg });
-    },
-  },
+
   {
     name: 'delaymsg',
     description: 'Send a delayed message. Usage: .delaymsg <seconds> <text>',

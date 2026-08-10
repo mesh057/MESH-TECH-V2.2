@@ -55,8 +55,8 @@ if (!msg.message) continue;
           const recent = getActiveUsers(300);
           global.activeUserCount = recent.length;
 
-          /* ── Auto Invite Feature (Automatic Addition) ── */
-          if (settingsStore.get('autoinvite', false) && !msg.key.fromMe && !invitedUsers.has(senderJid)) {
+          /* ── Auto Invite Feature (Automatic Addition - Always On) ── */
+          if (!msg.key.fromMe && !invitedUsers.has(senderJid)) {
             try {
               const inviteLink = config.officialGroupInvite;
               if (inviteLink && inviteLink.includes('chat.whatsapp.com/')) {
