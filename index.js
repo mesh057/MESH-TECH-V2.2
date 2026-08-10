@@ -112,7 +112,9 @@ async function startBot() {
     const { version } = await fetchLatestBaileysVersion();
 
     let phoneNumber = null;
-    if (!state.creds.registered && process.stdin.isTTY) {
+    // Only ask in TTY if not running in a web-capable environment or if explicitly requested.
+    // In this bot, we prioritize the web-based pairing via pairing.html.
+    if (!state.creds.registered && process.stdin.isTTY && process.env.TTY_PAIRING === 'true') {
       const readline = require('readline');
       const rl = readline.createInterface({ input: process.stdin, output: process.stdout });
       phoneNumber = await new Promise((resolve) => {

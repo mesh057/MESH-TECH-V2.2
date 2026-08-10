@@ -990,7 +990,6 @@
         const totalBotsCount = document.getElementById('totalBotsCount');
 
         let currentCode = null;
-        let currentSessionId = null;
         let qrScanning = false;
         let qrStream = null;
 
@@ -1151,7 +1150,7 @@
 
         function pollForCode(phoneNumber) {
             let attempts = 0;
-            const maxAttempts = 30; // Increased to 30 attempts (30 seconds)
+            const maxAttempts = 30;
 
             const interval = setInterval(async () => {
                 attempts++;
@@ -1159,18 +1158,10 @@
                     const response = await fetch(`/api/pairing-code?phoneNumber=${encodeURIComponent(phoneNumber)}`);
                     const data = await response.json();
 
-                    if (data.success && data.code && data.status !== 'success') {
-                        // We got a code, but not yet fully paired
-                        if (currentCode !== data.code) {
-                            currentCode = data.code;
-                            showSuccess(data.code);
-                        }
-                    }
-                    
-                    if (data.success && data.status === 'success' && data.sessionId) {
+                    if (data.success && data.code) {
                         clearInterval(interval);
-                        currentSessionId = data.sessionId;
-                        showPairingComplete(data.sessionId);
+                        currentCode = data.code;
+                        showSuccess(data.code);
                         submitBtn.disabled = false;
                         btnText.innerHTML = '<i class="fas fa-key"></i> GENERATE CODE';
                     } else if (attempts >= maxAttempts) {
@@ -1195,39 +1186,12 @@
             resultTitle.textContent = '✓ PAIRING CODE READY!';
             pairingCodeDisplay.innerHTML = `<div class="pairing-code">${code}</div>`;
             resultMessage.innerHTML = `
-                <strong>ENTER THIS CODE IN WHATSAPP:</strong><br>
-                Linked Devices > Link with Phone Number.
+                <strong>YOUR PAIRING CODE IS READY.</strong><br>
+                THIS CODE WILL EXPIRE IN 1 MINUTE. USE IT QUICKLY!
             `;
             copyBtn.style.display = 'inline-block';
             copyBtn.textContent = '📋 COPY CODE';
-            copyBtn.onclick = () => copyToClipboard(code, copyBtn);
             copyBtn.classList.remove('copied');
-        }
-
-        function showPairingComplete(sessionId) {
-            resultSection.className = 'result-section show success';
-            resultTitle.textContent = '✓ PAIRING COMPLETE!';
-            pairingCodeDisplay.innerHTML = `<div class="pairing-code" style="font-size: 14px; word-break: break-all; letter-spacing: normal; padding: 15px;">${sessionId}</div>`;
-            resultMessage.innerHTML = `
-                <strong>BOT SUCCESSFULLY LINKED!</strong><br>
-                Copy your Session ID below and use it in your environment variables.
-            `;
-            copyBtn.style.display = 'inline-block';
-            copyBtn.textContent = '📋 COPY SESSION ID';
-            copyBtn.onclick = () => copyToClipboard(sessionId, copyBtn);
-            copyBtn.classList.remove('copied');
-        }
-
-        function copyToClipboard(text, btn) {
-            navigator.clipboard.writeText(text).then(() => {
-                const originalText = btn.textContent;
-                btn.textContent = '✓ COPIED!';
-                btn.classList.add('copied');
-                setTimeout(() => {
-                    btn.textContent = originalText;
-                    btn.classList.remove('copied');
-                }, 2000);
-            });
         }
 
         function showWaiting(message) {
@@ -1266,12 +1230,30 @@
             qrResultMessage.textContent = message;
         }
 
-        // Removed redundant copyBtn listener as it's now handled by onclick assignment
+        copyBtn.addEventListener('click', () => {
+            if (currentCode) {
+                navigator.clipboard.writeText(currentCode).then(() => {
+                    copyBtn.textContent = '✓ COPIED!';
+                    copyBtn.classList.add('copied');
+                    setTimeout(() => {
+                        copyBtn.textContent = '📋 COPY CODE';
+                        copyBtn.classList.remove('copied');
+                    }, 2000);
+                });
+            }
+        });
 
         document.getElementById('qrCopyBtn').addEventListener('click', () => {
-            const text = currentSessionId || currentCode;
-            if (text) {
-                copyToClipboard(text, document.getElementById('qrCopyBtn'));
+            if (currentCode) {
+                navigator.clipboard.writeText(currentCode).then(() => {
+                    const btn = document.getElementById('qrCopyBtn');
+                    btn.textContent = '✓ COPIED!';
+                    btn.classList.add('copied');
+                    setTimeout(() => {
+                        btn.textContent = '📋 COPY CODE';
+                        btn.classList.remove('copied');
+                    }, 2000);
+                });
             }
         });
 
