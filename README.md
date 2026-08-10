@@ -59,3 +59,67 @@ Linking/Pairing:
 </p>
 
 Modifying the bot structure is at your own risk. We won't offer technical support if errors occur.
+
+
+## Command system
+
+The command loader now registers **real command modules only**. The old generated catalog that replied with messages such as `is working under AUTOMATION` has been removed, so unavailable commands are no longer presented as if they were implemented.
+
+Run the bot with the prefix configured in `.env` (the default is `.`). To see the commands that are actually loaded, send:
+
+```text
+.help
+```
+
+Use a command by sending its name followed by its arguments. Examples:
+
+```text
+.ping
+.alive
+.settings
+.sticker
+.song <song name>
+.tiktok <url>
+```
+
+Some commands need a quoted message, media attachment, group-admin permission, or an external API key. If a command depends on an external service, configure the relevant key in `.env` before using it. Copy `.env.example` to `.env`, set `OWNER_NUMBER`, `BOT_PREFIX`, `TIMEZONE`, and any service keys required by the commands you plan to use. Never commit `.env`, `auth_info_baileys/`, or generated `data/` files.
+
+### Enable or disable a command
+
+The owner can control individual loaded commands without editing source code. The setting is saved through the existing settings store and remains active after a restart.
+
+| Action | Command | Example |
+| --- | --- | --- |
+| Enable a command | `.enable <command>` | `.enable sticker` |
+| Disable a command | `.disable <command>` | `.disable sticker` |
+| Check one command | `.commandstatus <command>` | `.commandstatus sticker` |
+| Check all disabled commands | `.commandstatus` | `.commandstatus` |
+
+The aliases `.cmdon`, `.cmdoff`, and `.cmdstatus` are also available. Command names may be entered with or without the configured prefix. For example, `.disable .sticker` and `.disable sticker` refer to the same command.
+
+When a command is disabled, the bot responds with a clear disabled message instead of executing it. The command-control commands remain available so the owner can turn commands back on. Use `.enable sticker` to restore a disabled command.
+
+### Test the command loader
+
+After installing dependencies, run:
+
+```bash
+npm run test:commands
+```
+
+This checks that command modules load successfully, that the enable/disable controls exist, and that the removed generated placeholder commands are not registered. It does not pair WhatsApp or call external APIs.
+
+## Configuration
+
+For local setup:
+
+```bash
+cp .env.example .env
+npm install
+npm run test:commands
+npm start
+```
+
+The bot starts the WhatsApp connection and its pairing web server. Use the pairing page exposed by your hosting provider, or provide a previously saved `SESSION_ID`. The default HTTP port is `3000`; production hosts should inject their own `PORT` value.
+
+Commands that use media conversion or downloads may also require a working FFmpeg binary and valid provider/API credentials. A command can load correctly while still requiring its external service configuration at runtime; the bot reports the service error instead of treating a generic placeholder response as success.

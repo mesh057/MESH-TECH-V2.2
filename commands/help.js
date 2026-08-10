@@ -1,8 +1,11 @@
+'use strict';
+
 const config = require('../config/config');
+const { isDisabled } = require('../utils/commandToggle');
 
 module.exports = {
   name: 'help',
-  description: 'Shows the list of all available commands.',
+  description: 'Shows the list of available commands.',
 
   /**
    * @param {object} sock - active Baileys socket connection
@@ -13,14 +16,17 @@ module.exports = {
   async execute(sock, msg, args, commands) {
     const jid = msg.key.remoteJid;
 
-    // Build a numbered list like:
-    //   1. !ping - Checks if the bot is online and responsive.
-    //   2. !help - Shows the list of all available commands.
-    const lines = [...commands.values()].map((cmd, index) => {
-      return `${index + 1}. ${config.prefix}${cmd.name} - ${cmd.description}`;
+    const uniqueCommands = [...new Map(
+      [...commands.values()].map(command => [command.name.toLowerCase(), command])
+    ).values()]
+      .sort((a, b) => a.name.localeCompare(b.name));
+
+    const lines = uniqueCommands.map((cmd, index) => {
+      const state = isDisabled(cmd.name) ? ' [OFF]' : '';
+      return `${index + 1}. ${config.prefix}${cmd.name}${state} - ${cmd.description || 'No description available.'}`;
     });
 
-    const text = `*${config.botName} — Available Commands*\n\n${lines.join('\n')}`;
+    const text = `*${config.botName} — Available Commands*\n\n${lines.join('\n')}\n\nOwner controls: ${config.prefix}enable <command> | ${config.prefix}disable <command> | ${config.prefix}commandstatus`;
 
     await sock.sendMessage(jid, { text }, { quoted: msg });
   },

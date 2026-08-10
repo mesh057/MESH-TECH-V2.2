@@ -7,7 +7,11 @@ function loadCommands(commandsPath) {
 
   const commandFiles = fs
     .readdirSync(commandsPath)
-    .filter((file) => file.endsWith('.js'));
+    .filter((file) => file.endsWith('.js'))
+    // builtins.js is a legacy generated catalog containing placeholder
+    // handlers. Real commands live in their own modules and must be loaded
+    // without being shadowed by generic fallback responses.
+    .filter((file) => file !== 'builtins.js');
 
   for (const file of commandFiles) {
     const filePath = path.join(commandsPath, file);

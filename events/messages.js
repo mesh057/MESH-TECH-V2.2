@@ -6,6 +6,7 @@ const groupSettingsStore = require('../utils/groupSettingsStore');
 const fs = require('fs');
 const path = require('path');
 const cutoffFile = path.join(__dirname, '../auth_info_baileys/.first_boot_cutoff');
+const { isDisabled } = require('../utils/commandToggle');
 
 let CUTOFF_TIME;
 try {
@@ -424,6 +425,7 @@ console.log('STARTS WITH PREFIX =', text.startsWith(prefix));
               }
             }
             if (noPrefixCommand) {
+              if (isDisabled(noPrefixCommand.name)) continue;
               if (workType === 'private' && !msg.key.fromMe) {
                 const { isSudo } = require('../utils/isSudo');
                 if (!isSudo(msg)) continue;
@@ -518,8 +520,14 @@ console.log('ARGS =', args);
         if (!command) {
           continue;
         }
-
-if (workType === 'private' && !msg.key.fromMe) {
+        const controlCommands = new Set(['enable', 'disable', 'commandstatus', 'cmdon', 'cmdoff', 'cmdstatus']);
+        if (!controlCommands.has(command.name.toLowerCase()) && isDisabled(command.name)) {
+          await sock.sendMessage(msg.key.remoteJid, {
+            text: `⛔ The ${prefix}${command.name} command is currently disabled by the owner.`,
+          }, { quoted: msg });
+          continue;
+        }
+        if (workType === 'private' && !msg.key.fromMe) {
   const { isSudo } = require('../utils/isSudo');
   if (!isSudo(msg)) {
     continue;
