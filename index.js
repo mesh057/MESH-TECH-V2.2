@@ -1,6 +1,12 @@
 'use strict';
 
-globalThis.crypto = require('node:crypto').webcrypto;
+if (!globalThis.crypto) {
+  try {
+    globalThis.crypto = require('node:crypto').webcrypto;
+  } catch (e) {
+    // Already defined or read-only in newer Node.js versions
+  }
+}
 require('dotenv').config();
 const path = require('path');
 const fs = require('fs');
