@@ -1,0 +1,42 @@
+name: Run MESH TECH MD Bot
+
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - main
+
+jobs:
+  bot:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Check syntax
+        run: |
+          node --check index.js
+          node --check server.js
+          node --check media/menu.js
+          node --check commands/menu.js
+
+      - name: Start bot
+        env:
+          OWNER_NUMBER: ${{ secrets.OWNER_NUMBER }}
+          OWNER_NAME: ${{ secrets.OWNER_NAME }}
+          BOT_NAME: MESH TECH MD
+          BOT_PREFIX: .
+          TIMEZONE: Africa/Nairobi
+          PORT: 3000
+        run: npm start
+        
