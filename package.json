@@ -13,7 +13,8 @@
     "test:instances": "node scripts/test-instance-manager-isolation.js",
     "test:multitenant": "node scripts/test-multitenant-pairing.js",
     "test:status": "node scripts/test-status-presence.js",
-    "test:regression": "npm run test:events && npm run test:pairing && npm run test:instances && npm run test:multitenant && npm run test:commands && npm run test:status"
+    "test:menu": "node scripts/test-menu-dropdown.js",
+    "test:regression": "npm run test:events && npm run test:pairing && npm run test:instances && npm run test:multitenant && npm run test:commands && npm run test:status && npm run test:menu"
   },
   "keywords": [
     "whatsapp",
