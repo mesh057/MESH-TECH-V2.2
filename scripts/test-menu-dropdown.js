@@ -51,7 +51,22 @@ const commands = new Map([
   const realCount = uniqueCommandCount(realCommands);
   assert.match(realSent[0].payload.text, new RegExp(`${realCount} COMMANDS LOADED`));
   assert.ok(realSent[0].payload.sections.length > 0);
-  console.log(`PASS: menu dropdown exposes ${realCount} real unique commands and visible command rows.`);
+
+  const fallbackSent = [];
+  let firstAttempt = true;
+  await menuCommand.execute({
+    async sendMessage(jid, fallbackPayload) {
+      if (firstAttempt) {
+        firstAttempt = false;
+        throw new Error('list unsupported');
+      }
+      fallbackSent.push({ jid, payload: fallbackPayload });
+      return fallbackPayload;
+    },
+  }, { key: { remoteJid: '254700000000@s.whatsapp.net' } }, [], realCommands);
+  assert.equal(fallbackSent.length, 1);
+  assert.match(fallbackSent[0].payload.text, new RegExp(`${realCount} 𝗟𝗼𝗮𝗱𝗲𝗱`));
+  console.log(`PASS: menu dropdown exposes ${realCount} real unique commands and text fallback.`);
 })().catch((error) => {
   console.error(error);
   process.exitCode = 1;

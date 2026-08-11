@@ -49,6 +49,14 @@ module.exports = {
 
     // Baileys renders this payload as WhatsApp's native list/dropdown menu.
     // Keep the command count in the title so it remains visible before opening it.
-    return sock.sendMessage(jid, listMessage, { quoted: msg });
+    try {
+      return await sock.sendMessage(jid, listMessage, { quoted: msg });
+    } catch (error) {
+      // Older WhatsApp clients can reject native lists; never hide the commands.
+      const timezone = detectTimezone(msg.key.participant || jid);
+      const fallback = menuModule.getMenu(commands, timezone, Number(global.activeUserCount || 0));
+      console.warn(`[menu] Native dropdown rejected; using text fallback: ${error.message}`);
+      return sock.sendMessage(jid, { text: fallback }, { quoted: msg });
+    }
   },
 };
