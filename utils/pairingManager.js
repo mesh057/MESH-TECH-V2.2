@@ -1,6 +1,7 @@
 'use strict';
 
 const fs = require('fs');
+const crypto = require('crypto');
 const path = require('path');
 const {
   default: makeWASocket,
@@ -12,6 +13,7 @@ const {
   delay,
 } = require('@whiskeysockets/baileys');
 const logger = require('./logger');
+const instanceManager = require('./instanceManager');
 
 const PAIRING_TIMEOUT_MS = 3 * 60 * 1000;
 const MAX_HANDSHAKE_RESTARTS = 2;
@@ -59,6 +61,7 @@ async function startPairing(phoneNumber) {
 
   const session = {
     number,
+    accessToken: crypto.randomBytes(32).toString('hex'),
     tempAuthFolder,
     status: 'initializing',
     code: null,
@@ -135,12 +138,10 @@ async function handleConnectionUpdate(session, sock, version, update) {
       const credsPath = path.join(session.tempAuthFolder, 'creds.json');
       const credsBuffer = fs.readFileSync(credsPath);
       session.sessionId = `MESH-TECH-MD:~${credsBuffer.toString('base64')}`;
-      // Hand the newly linked credentials to the running main bot. Without
-      // this handoff, the temporary pairing socket succeeds but the main bot
-      // continues using its old auth directory and later times out.
-      if (global.meshMainBot?.adoptPairingSession) {
-        await global.meshMainBot.adoptPairingSession(session.tempAuthFolder);
-      }
+      // Start or refresh only this customer's isolated bot instance. The
+      // credentials are stored under auth_sessions/<phone-number>, so a new
+      // customer cannot overwrite another customer's WhatsApp session.
+      await instanceManager.adoptPairingSession(session.number, session.tempAuthFolder);
       session.status = 'success';
       session.error = null;
       logger.info(`[pairingManager] Successfully paired ${session.number}`);
@@ -180,8 +181,13 @@ async function handleConnectionUpdate(session, sock, version, update) {
   logger.error(`[pairingManager] Pairing connection closed for ${session.number}: ${reason}`);
 }
 
-function getStatus(phoneNumber) {
-  return sessions.get(normalizePhoneNumber(phoneNumber));
+function getStatus(phoneNumber, accessToken) {
+  const session = sessions.get(normalizePhoneNumber(phoneNumber));
+  if (!session || !accessToken) return null;
+  const expected = Buffer.from(session.accessToken);
+  const received = Buffer.from(String(accessToken));
+  if (expected.length !== received.length || !crypto.timingSafeEqual(expected, received)) return null;
+  return session;
 }
 
 async function cleanup(phoneNumber) {

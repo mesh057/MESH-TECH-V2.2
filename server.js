@@ -3,6 +3,7 @@
 const path = require('path');
 const express = require('express');
 const pairingManager = require('./utils/pairingManager');
+const instanceManager = require('./utils/instanceManager');
 
 const app = express();
 const port = Number(process.env.PORT || 3000);
@@ -43,7 +44,7 @@ app.use(express.static(publicDir, { index: 'pairing.html' }));
 app.get('/api/status', (_req, res) => {
   res.json({
     botStatus: botConnectionState,
-    totalActive: pairingManager.getActiveCount ? pairingManager.getActiveCount() : 0,
+    totalActive: instanceManager.count() + (pairingManager.getActiveCount ? pairingManager.getActiveCount() : 0),
     registered: isRegistered,
   });
 });
@@ -55,13 +56,14 @@ app.post('/api/request-pairing', rateLimit, async (req, res) => {
       return res.status(400).json({ success: false, error: 'Phone number is required.' });
     }
 
-    await pairingManager.startPairing(phoneNumber);
+    const session = await pairingManager.startPairing(phoneNumber);
     const normalized = pairingManager.normalizePhoneNumber(phoneNumber);
 
     res.json({
       success: true,
       message: 'Pairing code requested.',
       phoneNumber: normalized,
+      accessToken: session.accessToken,
     });
   } catch (error) {
     res.status(400).json({ success: false, error: error.message });
@@ -70,13 +72,14 @@ app.post('/api/request-pairing', rateLimit, async (req, res) => {
 
 app.get('/api/pairing-code', (req, res) => {
   const phoneNumber = req.query.phoneNumber;
-  if (!phoneNumber) {
-    return res.status(400).json({ success: false, error: 'phoneNumber query parameter is required.' });
+  const accessToken = req.query.accessToken;
+  if (!phoneNumber || !accessToken) {
+    return res.status(400).json({ success: false, error: 'phoneNumber and accessToken query parameters are required.' });
   }
 
-  const session = pairingManager.getStatus(phoneNumber);
+  const session = pairingManager.getStatus(phoneNumber, accessToken);
   if (!session) {
-    return res.json({ success: false, error: 'Session expired or not found. Please generate a new code.' });
+    return res.status(403).json({ success: false, error: 'Pairing session expired or unauthorized. Generate a new code.' });
   }
 
   if (session.status === 'error') {
@@ -88,6 +91,7 @@ app.get('/api/pairing-code', (req, res) => {
     status: session.status,
     code: session.code,
     phoneNumber: session.number,
+    sessionId: session.status === 'success' ? session.sessionId : null,
   });
 });
 

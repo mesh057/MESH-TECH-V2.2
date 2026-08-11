@@ -28,3 +28,4 @@ config/sudoList.json
 temp_pair_sessions/
 .deployed-commit
 temp_sessions/
+auth_sessions/

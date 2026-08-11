@@ -10,9 +10,7 @@ const config = require('./config/config');
 const logger = require('./utils/logger');
 const { fetchCore } = require('./utils/fetchCore');
 const { acquireLock } = require('./utils/instanceLock');
-const BotInstance = require('./lib/BotInstance');
-const SettingsStore = require('./utils/settingsStore');
-const GroupSettingsStore = require('./utils/groupSettingsStore');
+const instanceManager = require('./utils/instanceManager');
 
 // Prevent two instances running at the same time
 acquireLock();
@@ -34,20 +32,16 @@ async function start() {
   printBanner();
   await fetchCore();
 
-  const authDir = path.join(__dirname, config.authFolder);
-  const dataDir = path.join(authDir, 'data');
-  if (!fs.existsSync(dataDir)) fs.mkdirSync(dataDir, { recursive: true });
+  // Start every persisted customer instance from its own auth/data directory.
+  await instanceManager.startExisting();
 
-  // Initialize main bot instance
-  // The main bot uses the default authFolder (auth_info_baileys)
-  const mainBot = new BotInstance('main', authDir);
-  global.meshMainBot = mainBot;
-  
-  // Set global main settings for backward compatibility in non-command contexts
-  global.mainSettings = mainBot.settings;
-  global.mainGroupSettings = mainBot.groupSettings;
-
-  await mainBot.init();
+  // Keep the legacy auth folder compatible with existing deployments. New
+  // customers are stored under auth_sessions/<phone-number> and never replace
+  // another customer's credentials.
+  const legacyAuthDir = path.join(__dirname, config.authFolder);
+  if (fs.existsSync(path.join(legacyAuthDir, 'creds.json')) && !instanceManager.get('main')) {
+    await instanceManager.startFromAuth('main', legacyAuthDir);
+  }
 
   // Start the pairing server (already required in background via index.js or similar)
   // Actually, index.js is the entry point, so we need to make sure server.js is running.

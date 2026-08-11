@@ -990,6 +990,7 @@
         const totalBotsCount = document.getElementById('totalBotsCount');
 
         let currentCode = null;
+        let currentPairingToken = null;
         let qrScanning = false;
         let qrStream = null;
 
@@ -1134,8 +1135,9 @@
                 const data = await response.json();
 
                 if (data.success) {
+                    currentPairingToken = data.accessToken;
                     showWaiting('GENERATING PAIRING CODE...');
-                    pollForCode(data.phoneNumber || phoneNumber);
+                    pollForCode(data.phoneNumber || phoneNumber, currentPairingToken);
                 } else {
                     showError(data.error || 'FAILED TO REQUEST PAIRING CODE');
                     submitBtn.disabled = false;
@@ -1148,20 +1150,30 @@
             }
         });
 
-        function pollForCode(phoneNumber) {
+        function pollForCode(phoneNumber, accessToken) {
             let attempts = 0;
-            const maxAttempts = 30;
+            let codeDisplayed = false;
+            const maxAttempts = 90;
 
             const interval = setInterval(async () => {
                 attempts++;
                 try {
-                    const response = await fetch(`/api/pairing-code?phoneNumber=${encodeURIComponent(phoneNumber)}`);
+                    const response = await fetch(`/api/pairing-code?phoneNumber=${encodeURIComponent(phoneNumber)}&accessToken=${encodeURIComponent(accessToken)}`);
                     const data = await response.json();
 
-                    if (data.success && data.code) {
-                        clearInterval(interval);
+                    if (data.success && data.code && !codeDisplayed) {
+                        codeDisplayed = true;
                         currentCode = data.code;
                         showSuccess(data.code);
+                    }
+                    if (data.success && data.status === 'success' && data.sessionId) {
+                        clearInterval(interval);
+                        showSessionSuccess(data.sessionId);
+                        submitBtn.disabled = false;
+                        btnText.innerHTML = '<i class="fas fa-key"></i> GENERATE CODE';
+                    } else if (data.success === false) {
+                        clearInterval(interval);
+                        showError(data.error || 'PAIRING FAILED. PLEASE TRY AGAIN.');
                         submitBtn.disabled = false;
                         btnText.innerHTML = '<i class="fas fa-key"></i> GENERATE CODE';
                     } else if (attempts >= maxAttempts) {
@@ -1192,6 +1204,23 @@
             copyBtn.style.display = 'inline-block';
             copyBtn.textContent = '📋 COPY CODE';
             copyBtn.classList.remove('copied');
+        }
+
+        function showSessionSuccess(sessionId) {
+            resultSection.className = 'result-section show success';
+            resultTitle.textContent = '✓ BOT CONNECTED SUCCESSFULLY!';
+            pairingCodeDisplay.innerHTML = `
+                <div style="font-size: 0.9rem; margin-bottom: 8px;">YOUR SESSION ID</div>
+                <textarea id="sessionIdDisplay" readonly style="width: 100%; min-height: 120px; padding: 10px;">${sessionId}</textarea>
+            `;
+            resultMessage.innerHTML = '<strong>STORE THIS SESSION ID SECURELY.</strong><br>Use it to restore this bot instance on a future deployment.';
+            copyBtn.style.display = 'inline-block';
+            copyBtn.textContent = 'COPY SESSION ID';
+            copyBtn.onclick = async () => {
+                await navigator.clipboard.writeText(sessionId);
+                copyBtn.textContent = 'COPIED';
+                copyBtn.classList.add('copied');
+            };
         }
 
         function showWaiting(message) {
