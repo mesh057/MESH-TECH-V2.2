@@ -1,7 +1,7 @@
 /**
  * tools2.js — tools commands: weather, disk, xray, ghostping, rootme,
  *             delaymsg, reactch, listactive
- * + status-automation toggles: autogreet, autoreact, autostatus
+ * + status-automation toggles: autogreet, autoreact, legacy autostatus
  */
 'use strict';
 const os = require('os');
@@ -130,7 +130,7 @@ module.exports = [
     },
   },
   {
-    name: 'autostatus',
+    name: 'autostatuslegacy',
     description: 'Toggle auto-viewing contacts\' status updates (status).',
     category: 'STATUS',
     async execute(sock, msg, args) {

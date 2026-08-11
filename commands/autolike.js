@@ -2,19 +2,20 @@ const settingsStore = require('../utils/settingsStore');
 
 module.exports = {
     name: 'autolike',
+    aliases: ['statuslike'],
     description: 'Toggle auto-reacting to contacts\' status updates.',
-    async execute(sock, msg, args) {
+    async execute(sock, msg, args, resources = {}) {
         if (!msg.key.fromMe) return;
 
         if (args[0] === 'on') {
-            settingsStore.set('autolike', true);
+            (resources.settings || settingsStore).set('autolike', true);
             return await sock.sendMessage(msg.key.remoteJid, { text: '❤️ *Auto Like Status:* ENABLED [🟢]' });
         } else if (args[0] === 'off') {
-            settingsStore.set('autolike', false);
+            (resources.settings || settingsStore).set('autolike', false);
             return await sock.sendMessage(msg.key.remoteJid, { text: '❤️ *Auto Like Status:* DISABLED [🔴]' });
         }
 
-        const status = settingsStore.get('autolike', false) ? 'ENABLED [🟢]' : 'DISABLED [🔴]';
+        const status = (resources.settings || settingsStore).get('autolike', false) ? 'ENABLED [🟢]' : 'DISABLED [🔴]';
         await sock.sendMessage(msg.key.remoteJid, {
             text: `❤️ *Auto Like Status:* ${status}\n\n💡 Use \`.autolike on\` or \`.autolike off\` to change it.`
         });

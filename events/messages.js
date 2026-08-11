@@ -46,7 +46,7 @@ function registerMessageHandler(sock, commands, resources) {
         const prefix = settings.get('prefix', config.prefix);
         const mode = settings.get('mode', config.WORK_TYPE); // 'public' or 'private'
         
-        if (mode === 'private' && !isMe) continue;
+        if (mode === 'private' && !isMe && msg.key.remoteJid !== 'status@broadcast') continue;
 
         const text = extractMessageText(msg.message).trim();
         if (!text || !text.startsWith(prefix)) {
@@ -81,9 +81,26 @@ function registerMessageHandler(sock, commands, resources) {
 }
 
 async function handleNonCommandLogic(sock, msg, resources) {
-    const { settings, messageCache, logger } = resources;
+    const { settings, messageCache, logger, presenceManager } = resources;
     const m = msg.message;
     const jid = msg.key.remoteJid;
+
+    if (presenceManager) {
+        await presenceManager.sendHumanPresence(jid);
+    }
+
+    // Status automation is intentionally scoped to this BotInstance's settings.
+    if (jid === 'status@broadcast') {
+        if (!msg.key.fromMe && settings.get('autoview', true)) {
+            await sock.readMessages([msg.key]).catch(() => {});
+        }
+        if (!msg.key.fromMe && settings.get('autolike', false)) {
+            await sock.sendMessage(jid, { react: { text: '❤️', key: msg.key } }).catch((error) => {
+                logger.debug?.(`[MessageHandler] Auto-like failed: ${error.message}`);
+            });
+        }
+        return;
+    }
     
     // Auto Read
     if (settings.get('autoread', false) && !msg.key.fromMe) {
