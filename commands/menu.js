@@ -43,8 +43,16 @@ module.exports = {
   name: 'menu',
   aliases: ['help'],
   category: 'SYSTEM',
-  async execute(sock, msg, args, commands) {
+  async execute(sock, msg, args, commandsOrResources) {
     const jid = msg.key.remoteJid;
+    // Message dispatch passes the per-instance resources object as the fourth
+    // argument; direct callers may pass the Map itself. Normalize both shapes
+    // so production menus use the same catalog that dispatch uses.
+    const commands = commandsOrResources instanceof Map
+      ? commandsOrResources
+      : commandsOrResources?.commands instanceof Map
+        ? commandsOrResources.commands
+        : new Map();
     const listMessage = buildDropdown(commands);
 
     // Baileys renders this payload as WhatsApp's native list/dropdown menu.
