@@ -10,7 +10,6 @@ const config = require('./config/config');
 const logger = require('./utils/logger');
 const { fetchCore } = require('./utils/fetchCore');
 const { acquireLock } = require('./utils/instanceLock');
-const pairingManager = require('./utils/pairingManager');
 const BotInstance = require('./lib/BotInstance');
 const SettingsStore = require('./utils/settingsStore');
 const GroupSettingsStore = require('./utils/groupSettingsStore');
@@ -48,11 +47,6 @@ async function start() {
   global.mainGroupSettings = mainBot.groupSettings;
 
   await mainBot.init();
-
-  // Initialize other persistent multi-user sessions
-  pairingManager.initPersistentSessions().catch(err => {
-    logger.error(`[multi-user] Failed to initialize persistent sessions: ${err.message}`);
-  });
 
   // Start the pairing server (already required in background via index.js or similar)
   // Actually, index.js is the entry point, so we need to make sure server.js is running.

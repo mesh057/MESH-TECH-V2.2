@@ -7,7 +7,7 @@ class MessageCache {
     }
 
     set(jid, id, data) {
-        const key = \`\${jid}:\${id}\`;
+        const key = `${jid}:${id}`;
         this.cache.set(key, { ...data, timestamp: Date.now() });
         
         if (this.cache.size > this.maxSize) {
@@ -17,7 +17,7 @@ class MessageCache {
     }
 
     get(jid, id) {
-        return this.cache.get(\`\${jid}:\${id}\`);
+        return this.cache.get(`${jid}:${id}`);
     }
 
     clear() {
