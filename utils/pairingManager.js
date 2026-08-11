@@ -135,6 +135,12 @@ async function handleConnectionUpdate(session, sock, version, update) {
       const credsPath = path.join(session.tempAuthFolder, 'creds.json');
       const credsBuffer = fs.readFileSync(credsPath);
       session.sessionId = `MESH-TECH-MD:~${credsBuffer.toString('base64')}`;
+      // Hand the newly linked credentials to the running main bot. Without
+      // this handoff, the temporary pairing socket succeeds but the main bot
+      // continues using its old auth directory and later times out.
+      if (global.meshMainBot?.adoptPairingSession) {
+        await global.meshMainBot.adoptPairingSession(session.tempAuthFolder);
+      }
       session.status = 'success';
       session.error = null;
       logger.info(`[pairingManager] Successfully paired ${session.number}`);

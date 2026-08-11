@@ -41,6 +41,7 @@ async function start() {
   // Initialize main bot instance
   // The main bot uses the default authFolder (auth_info_baileys)
   const mainBot = new BotInstance('main', authDir);
+  global.meshMainBot = mainBot;
   
   // Set global main settings for backward compatibility in non-command contexts
   global.mainSettings = mainBot.settings;
