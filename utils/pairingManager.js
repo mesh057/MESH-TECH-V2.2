@@ -7,6 +7,9 @@ const {
   useMultiFileAuthState,
   fetchLatestBaileysVersion,
   DisconnectReason,
+  makeCacheableSignalKeyStore,
+  Browsers,
+  delay,
 } = require('@whiskeysockets/baileys');
 const logger = require('./logger');
 
@@ -65,44 +68,46 @@ async function startPairing(phoneNumber) {
 
     const sock = makeWASocket({
       version,
-      auth: state,
-      browser: ['Ubuntu', 'Chrome', '120.0.6099.130'],
+      auth: {
+        creds: state.creds,
+        keys: makeCacheableSignalKeyStore(
+          state.keys,
+          logger.child ? logger.child({ module: 'baileys-pairing-keys' }) : logger
+        ),
+      },
+      printQRInTerminal: false,
       logger: logger.child ? logger.child({ module: 'baileys-pairing' }) : logger,
-      // Pairing must allow enough time for the Noise/WebSocket handshake on
-      // Railway before the companion registration IQ is sent.
+      browser: Browsers.ubuntu('Chrome'),
+      markOnlineOnConnect: true,
       defaultQueryTimeoutMs: 60000,
       connectTimeoutMs: 60000,
-      markOnlineOnConnect: false,
     });
 
     session.sock = sock;
-    let pairingRequestStarted = false;
+
+    // Use the reference bot's sequencing: request the companion code after
+    // socket creation, not from the first connection.update event. This
+    // avoids racing the initial WhatsApp Noise/WebSocket handshake.
+    if (!state.creds.registered) {
+      await delay(3000);
+      if (!sessions.has(number)) return session;
+      try {
+        session.status = 'requesting_code';
+        const rawCode = await sock.requestPairingCode(number);
+        session.code = rawCode?.match(/.{1,4}/g)?.join('-') || rawCode;
+        session.status = 'awaiting_code';
+        logger.info(`[pairingManager] Generated code for ${number}; waiting for WhatsApp confirmation`);
+      } catch (err) {
+        session.status = 'error';
+        session.error = `WhatsApp pairing request failed: ${err.message}`;
+        logger.error(`[pairingManager] Pairing request failed for ${number}: ${err.stack || err.message}`);
+      }
+    }
+
     sock.ev.on('creds.update', saveCreds);
 
     sock.ev.on('connection.update', async (update) => {
       const { connection, lastDisconnect } = update;
-
-      if (connection === 'connecting' && !session.code && !pairingRequestStarted) {
-        pairingRequestStarted = true;
-        try {
-          // The connecting event can arrive before the WebSocket/Noise
-          // handshake is ready. This delay is intentional and prevents the
-          // link_code_companion_reg IQ from being sent too early.
-          await new Promise(resolve => setTimeout(resolve, 5000));
-          if (!sessions.has(number) || session.status === 'error') return;
-          if (state.creds.registered) {
-            throw new Error('This temporary pairing session is already registered. Request a new code.');
-          }
-          session.status = 'requesting_code';
-          session.code = await sock.requestPairingCode(number);
-          session.status = 'awaiting_code';
-          logger.info(`[pairingManager] Generated code for ${number}; waiting for WhatsApp confirmation`);
-        } catch (err) {
-          session.status = 'error';
-          session.error = `WhatsApp handshake failed while requesting the pairing code: ${err.message}`;
-          logger.error(`[pairingManager] Pairing handshake failed for ${number}: ${err.stack || err.message}`);
-        }
-      }
 
       if (connection === 'open') {
         try {
