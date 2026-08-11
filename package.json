@@ -8,7 +8,11 @@
     "start": "node index.js",
     "dev": "nodemon index.js",
     "test:commands": "node scripts/test-commands.js",
-    "test:multitenant": "node scripts/test-multitenant-pairing.js"
+    "test:events": "node scripts/test-bot-instance-events.js",
+    "test:pairing": "node scripts/test-pairing-manager-integration.js",
+    "test:instances": "node scripts/test-instance-manager-isolation.js",
+    "test:multitenant": "node scripts/test-multitenant-pairing.js",
+    "test:regression": "npm run test:events && npm run test:pairing && npm run test:instances && npm run test:multitenant && npm run test:commands"
   },
   "keywords": [
     "whatsapp",

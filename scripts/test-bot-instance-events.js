@@ -1,0 +1,108 @@
+'use strict';
+
+const assert = require('node:assert/strict');
+const EventEmitter = require('node:events');
+const fs = require('node:fs');
+const os = require('node:os');
+const path = require('node:path');
+
+const baseDir = fs.mkdtempSync(path.join(os.tmpdir(), 'mesh-bot-events-'));
+const baileysPath = require.resolve('@whiskeysockets/baileys');
+const sockets = [];
+
+function makeFakeSocket() {
+  const ev = new EventEmitter();
+  const sentMessages = [];
+  const sock = {
+    ev,
+    user: { id: '254700000099:1@s.whatsapp.net' },
+    sentMessages,
+    async sendMessage(jid, payload) {
+      sentMessages.push({ jid, payload });
+      return payload;
+    },
+    end() {},
+  };
+  sockets.push(sock);
+  return sock;
+}
+
+const realBaileys = require(baileysPath);
+require.cache[baileysPath] = {
+  id: baileysPath,
+  filename: baileysPath,
+  loaded: true,
+  exports: {
+    ...realBaileys,
+    default: () => {
+      const sock = makeFakeSocket();
+      setImmediate(() => sock.ev.emit('connection.update', { connection: 'open' }));
+      return sock;
+    },
+    useMultiFileAuthState: async (authDir) => {
+      fs.mkdirSync(authDir, { recursive: true });
+      return {
+        state: { creds: { registered: true }, keys: {} },
+        saveCreds: async () => {},
+      };
+    },
+    fetchLatestBaileysVersion: async () => ({ version: [2, 3000, 0] }),
+    makeCacheableSignalKeyStore: (keys) => keys,
+    jidNormalizedUser: (jid) => String(jid).replace(/:.*(?=@)/, ''),
+    DisconnectReason: { loggedOut: 401 },
+  },
+};
+
+const autoJoinPath = require.resolve('../utils/autoJoin');
+class FakeAutoJoiner {
+  constructor() {}
+  async autoJoinGroupOnce() {}
+}
+require.cache[autoJoinPath] = {
+  id: autoJoinPath,
+  filename: autoJoinPath,
+  loaded: true,
+  exports: FakeAutoJoiner,
+};
+
+const BotInstance = require('../lib/BotInstance');
+
+async function main() {
+  let passed = false;
+  try {
+    const instance = new BotInstance('254700000099', path.join(baseDir, 'auth'));
+    await instance.init();
+    await new Promise((resolve) => setImmediate(resolve));
+
+    assert(instance.commands instanceof Map);
+    assert(instance.commands.size > 0, 'BotInstance must load commands before registering message handlers');
+    assert.equal(instance.sock.ev.listenerCount('messages.upsert'), 1);
+    assert.equal(instance.sock.sentMessages.length, 1);
+    assert.match(instance.sock.sentMessages[0].payload.text, /Type \*\.menu\*/);
+    assert.equal(instance.sock.sentMessages[0].jid, '254700000099@s.whatsapp.net');
+
+    const sourceDir = path.join(baseDir, 'pairing-source');
+    fs.mkdirSync(sourceDir, { recursive: true });
+    fs.writeFileSync(path.join(sourceDir, 'creds.json'), JSON.stringify({ registered: true }));
+    await instance.adoptPairingSession(sourceDir);
+    await new Promise((resolve) => setImmediate(resolve));
+
+    assert(instance.commands instanceof Map);
+    assert(instance.commands.size > 0, 'Adopted BotInstance must retain commands before registering message handlers');
+    assert.equal(sockets.length, 2);
+    assert.equal(instance.sock.ev.listenerCount('messages.upsert'), 1);
+    assert.equal(instance.sock.sentMessages.length, 1);
+    assert.match(instance.sock.sentMessages[0].payload.text, /Type \*\.menu\*/);
+    assert.equal(instance.sock.sentMessages[0].jid, '254700000099@s.whatsapp.net');
+    console.log(`PASS: initial and adopted BotInstance connections loaded ${instance.commands.size} commands/aliases and sent welcome messages.`);
+    passed = true;
+  } finally {
+    fs.rmSync(baseDir, { recursive: true, force: true });
+    if (passed) setImmediate(() => process.exit(0));
+  }
+}
+
+main().catch((error) => {
+  console.error('FAIL:', error.stack || error.message);
+  process.exit(1);
+});
