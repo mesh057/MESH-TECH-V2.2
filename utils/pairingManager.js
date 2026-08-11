@@ -6,6 +6,7 @@ const {
   default: makeWASocket,
   useMultiFileAuthState,
   fetchLatestBaileysVersion,
+  DisconnectReason,
 } = require('@whiskeysockets/baileys');
 const logger = require('./logger');
 
@@ -67,27 +68,39 @@ async function startPairing(phoneNumber) {
       auth: state,
       browser: ['Ubuntu', 'Chrome', '120.0.6099.130'],
       logger: logger.child ? logger.child({ module: 'baileys-pairing' }) : logger,
-      defaultQueryTimeoutMs: 90000,
-      connectTimeoutMs: 90000,
+      // Pairing must allow enough time for the Noise/WebSocket handshake on
+      // Railway before the companion registration IQ is sent.
+      defaultQueryTimeoutMs: 60000,
+      connectTimeoutMs: 60000,
+      markOnlineOnConnect: false,
     });
 
     session.sock = sock;
+    let pairingRequestStarted = false;
     sock.ev.on('creds.update', saveCreds);
 
     sock.ev.on('connection.update', async (update) => {
       const { connection, lastDisconnect } = update;
 
-      if (connection === 'connecting' && !session.code) {
+      if (connection === 'connecting' && !session.code && !pairingRequestStarted) {
+        pairingRequestStarted = true;
         try {
-          // Delay slightly to ensure socket is ready for pairing code request
-          await new Promise(r => setTimeout(r, 3000));
+          // The connecting event can arrive before the WebSocket/Noise
+          // handshake is ready. This delay is intentional and prevents the
+          // link_code_companion_reg IQ from being sent too early.
+          await new Promise(resolve => setTimeout(resolve, 5000));
+          if (!sessions.has(number) || session.status === 'error') return;
+          if (state.creds.registered) {
+            throw new Error('This temporary pairing session is already registered. Request a new code.');
+          }
+          session.status = 'requesting_code';
           session.code = await sock.requestPairingCode(number);
           session.status = 'awaiting_code';
-          logger.info(`[pairingManager] Generated code ${session.code} for ${number}`);
+          logger.info(`[pairingManager] Generated code for ${number}; waiting for WhatsApp confirmation`);
         } catch (err) {
           session.status = 'error';
-          session.error = err.message;
-          logger.error(`[pairingManager] Failed to generate code for ${number}: ${err.message}`);
+          session.error = `WhatsApp handshake failed while requesting the pairing code: ${err.message}`;
+          logger.error(`[pairingManager] Pairing handshake failed for ${number}: ${err.stack || err.message}`);
         }
       }
 
@@ -108,10 +121,16 @@ async function startPairing(phoneNumber) {
       }
 
       if (connection === 'close') {
-        // If it closed without success or error, it might be a timeout or network issue
         if (session.status !== 'success' && session.status !== 'error') {
+          const statusCode = lastDisconnect?.error?.output?.statusCode;
+          const reason = statusCode === DisconnectReason.loggedOut
+            ? 'WhatsApp rejected the companion handshake. Remove any failed linked-device entry and request one fresh code.'
+            : statusCode === DisconnectReason.connectionClosed
+              ? 'The WhatsApp WebSocket closed during the handshake. Request one fresh code.'
+              : `WhatsApp closed the pairing connection${statusCode ? ` (code ${statusCode})` : ''}. Request one fresh code.`;
           session.status = 'error';
-          session.error = 'Connection closed prematurely.';
+          session.error = reason;
+          logger.error(`[pairingManager] Pairing connection closed for ${number}: ${reason}`);
         }
       }
     });
