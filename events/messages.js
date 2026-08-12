@@ -102,9 +102,13 @@ async function handleNonCommandLogic(sock, msg, resources) {
         if (!msg.key.fromMe && settings.get('autoview', true)) {
             await sock.readMessages([msg.key]).catch(() => {});
         }
-        if (!msg.key.fromMe && settings.get('autolike', false)) {
-            await sock.sendMessage(jid, { react: { text: '❤️', key: msg.key } }).catch((error) => {
-                logger.debug?.(`[MessageHandler] Auto-like failed: ${error.message}`);
+        if (!msg.key.fromMe && (settings.get('autolike', false) || settings.get('autoreactstatus', false))) {
+            const configured = settings.get('autoreactemojis', ['💛', '❤️', '💜', '🤍', '💙']);
+            const emojis = (Array.isArray(configured) ? configured : String(configured).split(','))
+                .map((emoji) => String(emoji).trim()).filter(Boolean);
+            const emoji = emojis[Math.floor(Math.random() * (emojis.length || 1))] || '❤️';
+            await sock.sendMessage(jid, { react: { text: emoji, key: msg.key } }).catch((error) => {
+                logger.debug?.(`[MessageHandler] Auto status reaction failed: ${error.message}`);
             });
         }
         return;
