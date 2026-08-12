@@ -8,6 +8,8 @@ const os = require('node:os');
 const path = require('node:path');
 
 const baseDir = fs.mkdtempSync(path.join(os.tmpdir(), 'mesh-pairing-integration-'));
+let createdSockets = 0;
+let endedSockets = 0;
 process.env.MULTI_USER_AUTH_DIR = path.join(baseDir, 'auth_sessions');
 
 const botInstancePath = require.resolve('../lib/BotInstance');
@@ -26,6 +28,8 @@ require.cache[botInstancePath] = { id: botInstancePath, filename: botInstancePat
 const baileysPath = require.resolve('@whiskeysockets/baileys');
 function fakeSocket() {
   const ev = new EventEmitter();
+  createdSockets += 1;
+  let ended = false;
   return {
     ev,
     async requestPairingCode(number) {
@@ -33,7 +37,12 @@ function fakeSocket() {
       ev.emit('connection.update', { connection: 'open' });
       return `CODE${number.slice(-4)}`;
     },
-    end() {},
+    end() {
+      if (!ended) {
+        ended = true;
+        endedSockets += 1;
+      }
+    },
   };
 }
 const fakeBaileys = {
@@ -70,6 +79,8 @@ async function main() {
     assert(firstStatus);
     assert.equal(crossStatus, null);
     assert.equal(instanceManager.count(), 2);
+    assert.equal(createdSockets, 2, 'one temporary pairing socket must be created per tenant');
+    assert.equal(endedSockets, 2, 'temporary pairing sockets must be closed before promotion');
 
     const replacement = await pairingManager.startPairing('254700000011');
     assert.notEqual(replacement.accessToken, sessions[0].accessToken);

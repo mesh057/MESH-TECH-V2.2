@@ -71,6 +71,8 @@ async function startPairing(phoneNumber) {
     sock: null,
     timeoutHandle: null,
     restartCount: 0,
+    promoting: false,
+    promotionPromise: null,
     cleaned: false,
   };
   sessions.set(number, session);
@@ -101,6 +103,7 @@ async function createPairingSocket(session, version, requestCode) {
   const sock = makeWASocket(makeSocketOptions(version, state));
   session.sock = sock;
 
+  session.saveCreds = saveCreds;
   sock.ev.on('creds.update', saveCreds);
   sock.ev.on('connection.update', (update) => {
     handleConnectionUpdate(session, sock, version, update).catch((err) => {
@@ -134,23 +137,37 @@ async function handleConnectionUpdate(session, sock, version, update) {
 
   const { connection, lastDisconnect } = update;
   if (connection === 'open') {
-    try {
-      const credsPath = path.join(session.tempAuthFolder, 'creds.json');
-      const credsBuffer = fs.readFileSync(credsPath);
-      session.sessionId = `MESH-TECH-MD:~${credsBuffer.toString('base64')}`;
-      // Start or refresh only this customer's isolated bot instance. The
-      // credentials are stored under auth_sessions/<phone-number>, so a new
-      // customer cannot overwrite another customer's WhatsApp session.
-      await instanceManager.adoptPairingSession(session.number, session.tempAuthFolder);
-      session.status = 'success';
-      session.error = null;
-      logger.info(`[pairingManager] Successfully paired ${session.number}`);
-      setTimeout(() => cleanup(session.number), 30000);
-    } catch (err) {
-      session.status = 'error';
-      session.error = 'Linked, but failed to generate session string.';
-    }
-    return;
+    if (session.promoting) return session.promotionPromise;
+    session.promoting = true;
+    session.status = 'promoting';
+    session.promotionPromise = (async () => {
+      try {
+        // Critical lifecycle boundary: do not run the temporary pairing socket
+        // beside the permanent tenant socket. Two active sockets for the same
+        // WhatsApp identity can race signal-key updates and produce Bad MAC /
+        // no-matching-session failures immediately after a successful pairing.
+        closePairingSocket(session, sock);
+        const credsPath = path.join(session.tempAuthFolder, 'creds.json');
+        const credsBuffer = fs.readFileSync(credsPath);
+        session.sessionId = `MESH-TECH-MD:~${credsBuffer.toString('base64')}`;
+        // Start or refresh only this customer's isolated bot instance. The
+        // credentials are stored under auth_sessions/<phone-number>, so a new
+        // customer cannot overwrite another customer's WhatsApp session.
+        await instanceManager.adoptPairingSession(session.number, session.tempAuthFolder);
+        session.status = 'success';
+        session.error = null;
+        logger.info(`[pairingManager] Successfully paired ${session.number}`);
+        const cleanupHandle = setTimeout(() => cleanup(session.number), 30000);
+        cleanupHandle.unref?.();
+      } catch (err) {
+        session.status = 'error';
+        session.error = `Linked, but failed to promote the session: ${err.message}`;
+        logger.error(`[pairingManager] Failed to promote paired session for ${session.number}: ${err.stack || err.message}`);
+      } finally {
+        session.promoting = false;
+      }
+    })();
+    return session.promotionPromise;
   }
 
   if (connection !== 'close') return;
@@ -169,7 +186,7 @@ async function handleConnectionUpdate(session, sock, version, update) {
     return;
   }
 
-  if (session.status === 'success' || session.status === 'error') return;
+  if (session.promoting || session.status === 'success' || session.status === 'error') return;
 
   const reason = statusCode === DisconnectReason.loggedOut
     ? 'WhatsApp rejected the companion handshake. Remove any failed linked-device entry and request one fresh code.'
@@ -188,6 +205,14 @@ function getStatus(phoneNumber, accessToken) {
   const received = Buffer.from(String(accessToken));
   if (expected.length !== received.length || !crypto.timingSafeEqual(expected, received)) return null;
   return session;
+}
+
+function closePairingSocket(session, sock) {
+  if (!sock || session.sock !== sock) return;
+  try { sock.ev.off?.('creds.update', session.saveCreds); } catch (_) {}
+  session.sock = null;
+  session.saveCreds = null;
+  try { sock.end(undefined); } catch (_) {}
 }
 
 async function cleanup(phoneNumber) {
