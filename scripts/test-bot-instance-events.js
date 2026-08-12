@@ -95,7 +95,16 @@ async function main() {
     assert.equal(instance.sock.ev.listenerCount('messages.upsert'), 1);
     assert.equal(capturedResources[0].commands, instance.commands, 'production resources must carry the instance command Map');
     assert.equal(instance.sock.sentMessages.length, 1);
-    assert.match(instance.sock.sentMessages[0].payload.text, /Type \*\.menu\*/);
+    const initialWelcome = instance.sock.sentMessages[0].payload.text;
+    assert.match(initialWelcome, /MESH-TECH MD BOT.*successfully connected/);
+    assert.match(initialWelcome, /Status:\* Online & Active/);
+    assert.match(initialWelcome, /Owner:\* @254700000099/);
+    assert.match(initialWelcome, /Prefix:\* \[ \. \]/);
+    assert.match(initialWelcome, /> Type \*\.menu\*/);
+    assert.match(initialWelcome, /Powered by MESH TECH/);
+    assert.match(initialWelcome, /chat\.whatsapp\.com\/DM1JxxnOJFp0vsTHpej89M/);
+    assert.match(initialWelcome, /whatsapp\.com\/channel\/0029VbDeTrNEKyZ9GIUude2R/);
+    assert.doesNotMatch(initialWelcome, /Isaac/i);
     assert.equal(instance.sock.sentMessages[0].jid, '254700000099@s.whatsapp.net');
 
     const sourceDir = path.join(baseDir, 'pairing-source');
@@ -110,7 +119,14 @@ async function main() {
     assert.equal(instance.sock.ev.listenerCount('messages.upsert'), 1);
     assert.equal(capturedResources[1].commands, instance.commands, 'adopted resources must carry the instance command Map');
     assert.equal(instance.sock.sentMessages.length, 1);
-    assert.match(instance.sock.sentMessages[0].payload.text, /Type \*\.menu\*/);
+    const adoptedWelcome = instance.sock.sentMessages[0].payload.text;
+    assert.match(adoptedWelcome, /MESH-TECH MD BOT.*successfully connected/);
+    assert.match(adoptedWelcome, /Status:\* Online & Active/);
+    assert.match(adoptedWelcome, /Owner:\* @254700000099/);
+    assert.match(adoptedWelcome, /Powered by MESH TECH/);
+    assert.match(adoptedWelcome, /chat\.whatsapp\.com\/DM1JxxnOJFp0vsTHpej89M/);
+    assert.match(adoptedWelcome, /whatsapp\.com\/channel\/0029VbDeTrNEKyZ9GIUude2R/);
+    assert.doesNotMatch(adoptedWelcome, /Isaac/i);
     assert.equal(instance.sock.sentMessages[0].jid, '254700000099@s.whatsapp.net');
 
     instance.sock.ev.emit('connection.update', {
