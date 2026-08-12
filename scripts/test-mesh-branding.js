@@ -51,6 +51,22 @@ const sent = [];
   }).join('\n');
   assert.doesNotMatch(runtimeSource, /isaac/i, 'runtime files must not contain legacy Isaac branding or identifiers');
 
+  const meshtech = fs.readFileSync(path.join(commandsDir, 'meshtech.js'), 'utf8');
+  assert.match(meshtech, /Message Mesh/);
+  assert.match(meshtech, /254746844168/);
+  assert.match(meshtech, /wa\.me/);
+  assert.doesNotMatch(meshtech, /ISAAC/i);
+
+  const owner = fs.readFileSync(path.join(commandsDir, 'owner.js'), 'utf8');
+  assert.match(owner, /Message Mesh/);
+  assert.match(owner, /254746844168/);
+  assert.doesNotMatch(owner, /ISAAC/i);
+
+  const donate = fs.readFileSync(path.join(commandsDir, 'donate.js'), 'utf8');
+  assert.match(donate, /0746844168/);
+  assert.match(donate, /Message Mesh/);
+  assert.doesNotMatch(donate, /ISAAC/i);
+
   const alive = fs.readFileSync(path.join(commandsDir, 'alive.js'), 'utf8');
   assert.match(alive, /MESH-TECH MD/);
   assert.doesNotMatch(alive, /ISAAC/i);

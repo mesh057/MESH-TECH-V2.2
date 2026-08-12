@@ -5,8 +5,8 @@ module.exports = {
     const jid = msg.key.remoteJid;
 
     // ── Customize these details ────────────────────────────────────────────
-    const ownerName = 'ᴾᴬᴾᴾᴵ ᴵˢᴬᴬᶜ';
-    const ownerNumber = '254718701810'; // digits only, with country code, no +
+    const ownerName = 'Message Mesh';
+    const ownerNumber = '254746844168'; // digits only, with country code, no +
 
     const vcard =
       'BEGIN:VCARD\n' +

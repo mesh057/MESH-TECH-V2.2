@@ -17,8 +17,8 @@ If you'd like to support the project and help keep it growing, you can donate us
 https://ko-fi.com/meshtech
 
 🇰🇪 M-Pesa
-📱 Number: 0718701810
-👤 Name: MESH-TECH
+📱 Number: 0746844168
+👤 Name: Message Mesh
 
 💡 Your support helps with:
 • Hosting and server costs

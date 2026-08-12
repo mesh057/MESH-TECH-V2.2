@@ -4,8 +4,8 @@ module.exports = {
   async execute(sock, msg) {
     const jid = msg.key.remoteJid;
 
-    const ownerName = '𝗜𝗦𝗔𝗔𝗖';
-    const ownerNumber = '254754574642'; // digits only, with country code, no +
+    const ownerName = 'Message Mesh';
+    const ownerNumber = '254746844168'; // digits only, with country code, no +
 
     const caption =
       `╭──〔 👑 MESH-TECH ASSISTANT 〕──╮\n` +
