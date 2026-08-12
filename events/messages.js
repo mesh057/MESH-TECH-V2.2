@@ -139,30 +139,11 @@ async function handleNonCommandLogic(sock, msg, resources) {
                     return;
                 }
                 const participant = String(msg.key.participant);
-                const botJid = sock.user?.id ? String(sock.user.id) : '';
-                const normalizedBotJid = botJid.replace(/:\d+(?=@)/, '');
-                const statusJidLists = [
-                    [participant, botJid].filter(Boolean),
-                    [participant, normalizedBotJid].filter(Boolean),
-                    [participant],
-                ].filter((list, index, all) => list.length > 0 && all.findIndex((candidate) => candidate.join('|') === list.join('|')) === index);
-                let lastError;
-                for (const statusJidList of statusJidLists) {
-                    try {
-                        await sock.sendMessage(msg.key.remoteJid || 'status@broadcast', { react: { text: emoji, key: msg.key } }, {
-                            statusJidList,
-                        });
-                        logger.info?.(`[MessageHandler] Auto status reaction sent: ${emoji} for ${msg.key.id || 'unknown'} participants=${statusJidList.join(',')}`);
-                        lastError = undefined;
-                        break;
-                    } catch (error) {
-                        lastError = error;
-                        const message = String(error?.message || error);
-                        if (!/not[- ]acceptable/i.test(message)) break;
-                        logger.warn?.(`[MessageHandler] Status reaction rejected for participants=${statusJidList.join(',')}; trying compatibility fallback`);
-                    }
-                }
-                if (lastError) throw lastError;
+                const statusJidList = [participant];
+                await sock.sendMessage('status@broadcast', { react: { text: emoji, key: msg.key } }, {
+                    statusJidList,
+                });
+                logger.info?.(`[MessageHandler] Auto status reaction sent: ${emoji} for ${msg.key.id || 'unknown'} participant=${participant}`);
             } catch (error) {
                 const message = String(error?.message || error);
                 if (/not[- ]acceptable/i.test(message)) {

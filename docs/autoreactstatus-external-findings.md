@@ -11,3 +11,9 @@ References:
 - https://github.com/WhiskeySockets/Baileys/issues/1029
 - https://whiskeysockets-baileys-85.mintlify.app/advanced/broadcast-stories
 - https://faq.whatsapp.com/1691088408081689
+
+## Supplied archive comparison — 2026-08-12
+
+Static inspection of the user-supplied `STUDIO-MD-V3.zip` and `ISAAC-main.zip` found the same status-reaction pattern in both reference implementations: after receiving a status message with a valid `msg.key.participant`, they call `sendMessage('status@broadcast', { react: { text: emoji, key: msg.key } }, { statusJidList: [msg.key.participant] })`. Neither reference adds the bot JID, a normalized bot JID, or multiple retry recipient lists. MESH-TECH's broader participant-list fallback therefore differs from both references and is a credible source of the live `not-acceptable` rejection.
+
+Reference materials consulted: Baileys stories documentation at https://whiskeysockets-baileys-85.mintlify.app/advanced/broadcast-stories and the Baileys status-reaction discussion at https://github.com/WhiskeySockets/Baileys/issues/1196. These findings are comparative evidence only; archive code was not executed.

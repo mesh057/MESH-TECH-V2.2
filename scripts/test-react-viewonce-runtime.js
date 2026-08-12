@@ -66,15 +66,15 @@ function msg(text, fromMe = true, jid = '120363000000000000@g.us') {
   assert(runtimeSent.some((entry) => entry.payload.forward), 'enabled ViewOnce forwarding must send the message to the owner');
   assert(runtimeSent.some((entry) => entry.payload.react?.text === '🔥'), 'status reaction must use configured emoji pool');
 
-  const fallbackSent = [];
-  const fallbackSocket = socket(fallbackSent);
-  fallbackSocket.rejectStatusReactionOnce = true;
-  const fallbackResources = { ...resources, settings: makeStore({ mode: 'public', autoreactstatus: true, autoreactemojis: ['✅'] }) };
-  registerMessageHandler(fallbackSocket, fallbackResources.commands, fallbackResources);
-  fallbackSocket.ev.emit('messages.upsert', { type: 'notify', messages: [{ key: { remoteJid: 'status@broadcast', fromMe: false, id: 'status-fallback', participant: '254700000003@s.whatsapp.net' }, message: { imageMessage: {} }, messageTimestamp: Math.floor(Date.now() / 1000) }] });
+  const rejectedSent = [];
+  const rejectedSocket = socket(rejectedSent);
+  rejectedSocket.rejectStatusReactionOnce = true;
+  const rejectedResources = { ...resources, settings: makeStore({ mode: 'public', autoreactstatus: true, autoreactemojis: ['✅'] }) };
+  registerMessageHandler(rejectedSocket, rejectedResources.commands, rejectedResources);
+  rejectedSocket.ev.emit('messages.upsert', { type: 'notify', messages: [{ key: { remoteJid: 'status@broadcast', fromMe: false, id: 'status-rejected', participant: '254700000003@s.whatsapp.net' }, message: { imageMessage: {} }, messageTimestamp: Math.floor(Date.now() / 1000) }] });
   await new Promise((resolve) => setImmediate(resolve));
-  const fallbackReaction = fallbackSent.find((entry) => entry.payload.react?.text === '✅' && entry.options?.statusJidList?.[1] === '254700000099@s.whatsapp.net');
-  assert(fallbackReaction, `not-acceptable status reactions must retry with a normalized bot JID: ${JSON.stringify(fallbackSent)}`);
+  assert.equal(rejectedSent.filter((entry) => entry.payload.react).length, 1, 'not-acceptable status reactions must not issue invalid recipient-list retries');
+  assert.deepEqual(rejectedSent[0].options?.statusJidList, ['254700000003@s.whatsapp.net'], 'status rejection attempt must use only the status owner participant');
 
   console.log('PASS: autoreactstatus mutations, viewonce scope/status, forwarding, and configured status reactions work.');
 })().catch((error) => { console.error(error); process.exitCode = 1; });
