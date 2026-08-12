@@ -38,7 +38,16 @@ function registerMessageHandler(sock, commands, resources) {
         if (!msg.message) continue;
 
         const msgTimestamp = Number(msg.messageTimestamp);
-        if (msgTimestamp && msgTimestamp < CUTOFF_TIME) continue;
+        // Status updates can be delivered after login with the timestamp of the
+        // original post. Do not apply the normal stale-message cutoff to them;
+        // otherwise autoreactstatus silently misses statuses posted before the
+        // bot connected. Ordinary chats still use the cutoff to avoid replaying
+        // old messages after a reconnect.
+        const isStatusEvent = isStatusChat(msg.key?.remoteJid);
+        if (isStatusEvent) {
+          logger.info?.(`[MessageHandler] Status upsert received: type=${type} id=${msg.key?.id || 'unknown'} timestamp=${msgTimestamp || 'unknown'} fromMe=${Boolean(msg.key?.fromMe)} participant=${msg.key?.participant || 'unknown'}`);
+        }
+        if (msgTimestamp && msgTimestamp < CUTOFF_TIME && !isStatusEvent) continue;
 
         const senderJid = msg.key.participant || msg.key.remoteJid;
         const isMe = msg.key.fromMe;

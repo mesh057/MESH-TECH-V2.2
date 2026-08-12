@@ -78,6 +78,19 @@ async function main() {
   await new Promise((resolve) => setImmediate(resolve));
   assert(sock.sent.some((entry) => entry.jid === 'status@broadcast' && ['🔥', '💙'].includes(entry.content.react?.text)), 'autoreactstatus must react to append/wrapped status events using the configured emoji list');
 
+  const reactionsBeforeStaleStatus = sock.sent.filter((entry) => entry.jid === 'status@broadcast' && entry.content.react).length;
+  sock.ev.emit('messages.upsert', {
+    type: 'notify',
+    messages: [{
+      key: { remoteJid: 'status@broadcast', id: 'status-old-1', fromMe: false, participant: '254700000002@s.whatsapp.net' },
+      message: { imageMessage: {} },
+      messageTimestamp: Math.floor(Date.now() / 1000) - 3600,
+    }],
+  });
+  await new Promise((resolve) => setImmediate(resolve));
+  const reactionsAfterStaleStatus = sock.sent.filter((entry) => entry.jid === 'status@broadcast' && entry.content.react).length;
+  assert.equal(reactionsAfterStaleStatus, reactionsBeforeStaleStatus + 1, 'autoreactstatus must not discard a status whose original timestamp predates the bot connection');
+
   sock.ev.emit('messages.upsert', {
     type: 'notify',
     messages: [{
