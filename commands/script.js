@@ -4,7 +4,7 @@ const path = require('path');
 module.exports = {
   name: 'script',
   aliases: ['repo', 'github'],
-  description: 'Shows the ISAAC repository information.',
+  description: 'Shows the MESH-TECH repository information.',
 
   async execute(sock, msg) {
     const jid = msg.key.remoteJid;
@@ -24,11 +24,11 @@ Hello 👋 *${senderName},*
 ╚═══════════════════════════╝
 
 🔷 *GitHub Repo:*
-↳ https://github.com/kingplayboi/ISAAC
+↳ https://github.com/mesh057/MESH-TECH-V2.2
 ⭐ Please star and fork the repository!
 
 👨‍💻 *Developer:*
-↳ https://github.com/kingplayboi
+↳ https://github.com/mesh057
 
 🔗 *WhatsApp Pairing:*
 ↳ https://session2-jvva.onrender.com/

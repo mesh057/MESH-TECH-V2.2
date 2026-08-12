@@ -30,7 +30,7 @@ Linking/Pairing:
 ## ` Deploy to heroku `
 
  [![Deploy](https://img.shields.io/badge/Deploy-MESH--TECH-7c3aed?style=for-the-badge&logo=heroku&logoColor=white)
-](https://isaac-verify.vercel.app)
+](https://bot-monetization.onrender.com)
 
 ## PANEL DEPLOYMENT 
 

@@ -52,7 +52,7 @@ module.exports = [
         await sock.sendMessage(jid, {
           document: fs.readFileSync(backupFile),
           mimetype: 'application/json',
-          fileName: `isaac-backup-${timestamp}.json`,
+          fileName: `meshtech-backup-${timestamp}.json`,
           caption: '✅ Backup created successfully!'
         }, { quoted: msg });
       } catch (e) {

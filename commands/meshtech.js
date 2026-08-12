@@ -1,6 +1,6 @@
 module.exports = {
-  name: 'isaac',
-  description: "Shows the ISAAC owner's name, number, and premium services.",
+  name: 'meshtech',
+  description: "Shows the MESH-TECH owner's name, number, and premium services.",
   async execute(sock, msg) {
     const jid = msg.key.remoteJid;
 
@@ -13,7 +13,7 @@ module.exports = {
       `📞 *Number:* +${ownerNumber}\n` +
       `🔗 *Chat:* https://wa.me/${ownerNumber}\n` +
       `╰──────────────────╯\n\n` +
-      `🫪 *ISAAC — Premium Services*\n` +
+      `🫪 *MESH-TECH — Premium Services*\n` +
       `━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n\n` +
       `🤖 *BOT SHOP*\n` +
       `▸ Anti-ban • Auto-reply • Multi-device\n` +

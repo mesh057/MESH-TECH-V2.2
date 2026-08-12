@@ -14,11 +14,11 @@ Thank you for using *MESH-TECH BOT*!
 If you'd like to support the project and help keep it growing, you can donate using any of the methods below.
 
 🌍 Online Donations
-https://ko-fi.com/kingplayboi
+https://ko-fi.com/meshtech
 
 🇰🇪 M-Pesa
 📱 Number: 0718701810
-👤 Name: ISAAC
+👤 Name: MESH-TECH
 
 💡 Your support helps with:
 • Hosting and server costs
@@ -27,7 +27,7 @@ https://ko-fi.com/kingplayboi
 • Keeping MESH-TECH BOT free for everyone
 
 🔗 GitHub
-https://github.com/kingplayboi/ISAAC
+https://github.com/mesh057/MESH-TECH-V2.2
 
 Thank you for supporting the project! 🚀
 

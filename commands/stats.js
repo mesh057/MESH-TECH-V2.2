@@ -32,7 +32,7 @@ const architecture = os.arch();
       const text = `
 📊 *BOT STATISTICS*
 
-🤖 *Bot:* ISAAC
+🤖 *Bot:* MESH-TECH
 🟢 *Status:* Online
 
 ⏱ *Uptime:* ${hours}h ${minutes}m ${seconds}s

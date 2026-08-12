@@ -166,11 +166,11 @@ module.exports = {
   description: 'Generate fancy text styles. Usage: .fancy (list styles) | .fancy <number> <word>',
   async execute(sock,msg,args) {
     const jid = msg.key.remoteJid;
-    const DEFAULT_WORD = 'ISAAC';
+    const DEFAULT_WORD = 'MESH-TECH';
 
     if (args.length === 0) {
       const list = styles.map((s,i)=>`${i+1}. ${s.fn(DEFAULT_WORD)}`).join('\n');
-      return await sock.sendMessage(jid,{text:`🎨 *Fancy Text Styles* (${styles.length})\n\n${list}\n\n_Usage: .fancy <number> <word>_\n_Example: .fancy 7 ISAAC_`},{quoted:msg});
+      return await sock.sendMessage(jid,{text:`🎨 *Fancy Text Styles* (${styles.length})\n\n${list}\n\n_Usage: .fancy <number> <word>_\n_Example: .fancy 7 MESH-TECH_`},{quoted:msg});
     }
 
     const num = parseInt(args[0],10);

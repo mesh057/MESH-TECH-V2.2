@@ -118,8 +118,8 @@ module.exports = [
             }
 
             const reply = json.result
-              .replace(/Keith AI/gi, 'ISAAC AI')
-              .replace(/Keithkeizzah/gi, 'ISAAC');
+              .replace(/Keith AI/gi, 'MESH-TECH AI')
+              .replace(/Keithkeizzah/gi, 'MESH-TECH');
 
             await sock.sendMessage(
               jid,
@@ -204,8 +204,8 @@ module.exports = [
             }
 
             const reply = json.result
-              .replace(/Keith AI/gi, 'ISAAC AI')
-              .replace(/Keithkeizzah/gi, 'ISAAC');
+              .replace(/Keith AI/gi, 'MESH-TECH AI')
+              .replace(/Keithkeizzah/gi, 'MESH-TECH');
 
             await sock.sendMessage(
               jid,
@@ -290,8 +290,8 @@ module.exports = [
             }
 
             const reply = json.result
-              .replace(/Keith AI/gi, 'ISAAC AI')
-              .replace(/Keithkeizzah/gi, 'ISAAC');
+              .replace(/Keith AI/gi, 'MESH-TECH AI')
+              .replace(/Keithkeizzah/gi, 'MESH-TECH');
 
             await sock.sendMessage(
               jid,

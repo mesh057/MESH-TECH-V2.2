@@ -5,7 +5,7 @@ module.exports = {
 
   async execute(sock, msg) {
     const jid = msg.key.remoteJid;
-    const REPO = 'kingplayboi/ISAAC';
+    const REPO = 'mesh057/MESH-TECH-V2.2';
     const url = `https://github.com/${REPO}/archive/refs/heads/main.zip`;
 
     await sock.sendMessage(jid, { text: '⏳ Fetching bot source code ZIP...' }, { quoted: msg });

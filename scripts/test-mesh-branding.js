@@ -38,6 +38,18 @@ const sent = [];
     .map((file) => path.join(commandsDir, file));
   const source = userFacingFiles.map((file) => fs.readFileSync(file, 'utf8')).join('\n');
   assert.doesNotMatch(source, /ISAAC-MD|ISAAC BOT|ISAAC TECH|ISAAC ASSISTANT|Powered by ISAAC|BOT:\s*ISAAC|by ISAAC|inside ISAAC/i);
+  assert.ok(commands.has('meshtech'), 'renamed MESH-TECH command should be loaded');
+  assert.ok(!fs.existsSync(path.join(commandsDir, 'isaac.js')), 'legacy Isaac command file should be removed');
+
+  const runtimeRoots = ['commands', 'media', 'lib', 'utils', 'config', 'index.js', 'README.md'];
+  const runtimeSource = runtimeRoots.flatMap((entry) => {
+    const target = path.join(root, entry);
+    if (fs.statSync(target).isDirectory()) {
+      return fs.readdirSync(target).filter((file) => file.endsWith('.js')).map((file) => fs.readFileSync(path.join(target, file), 'utf8'));
+    }
+    return [fs.readFileSync(target, 'utf8')];
+  }).join('\n');
+  assert.doesNotMatch(runtimeSource, /isaac/i, 'runtime files must not contain legacy Isaac branding or identifiers');
 
   const alive = fs.readFileSync(path.join(commandsDir, 'alive.js'), 'utf8');
   assert.match(alive, /MESH-TECH MD/);

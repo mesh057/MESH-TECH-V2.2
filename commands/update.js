@@ -26,8 +26,8 @@ const root = path.join(__dirname, '..');
 const gitDir = path.join(root, '.git');
 
 // Public repo — no auth needed to read commits.
-const GITHUB_OWNER = 'kingplayboi';
-const GITHUB_REPO = 'ISAAC';
+const GITHUB_OWNER = 'mesh057';
+const GITHUB_REPO = 'MESH-TECH-V2.2';
 const GITHUB_BRANCH = 'main';
 
 function hasGit() {
@@ -192,7 +192,7 @@ module.exports = [
             cwd: root,
             detached: true,
             stdio: 'ignore',
-            env: { ...process.env, ISAAC_RESTART_DELAY_MS: '4000' },
+            env: { ...process.env, MESH_TECH_RESTART_DELAY_MS: '4000' },
           });
           child.unref();
 

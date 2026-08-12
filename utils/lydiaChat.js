@@ -35,7 +35,7 @@ async function getLydiaReply(userMessage) {
 
     return res.result
       .replace(/Keith AI/gi, 'Lydia')
-      .replace(/Keithkeizzah/gi, 'ISAAC');
+      .replace(/Keithkeizzah/gi, 'MESH-TECH');
   } catch (err) {
     console.error('[lydiaChat] Error getting reply:', err.message);
     return null;
