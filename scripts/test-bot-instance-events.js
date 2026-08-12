@@ -136,7 +136,16 @@ async function main() {
     await new Promise((resolve) => setImmediate(resolve));
     assert.equal(instance.sessionResetRequired, true, 'Bad MAC must quarantine the corrupted session');
     assert.equal(fs.existsSync(instance.authDir), false, 'corrupted auth files must be cleared');
-    console.log(`PASS: initial and adopted BotInstance connections loaded ${instance.commands.size} commands/aliases and quarantined Bad MAC sessions.`);
+
+    const freshSourceDir = path.join(baseDir, 'fresh-pairing-source');
+    fs.mkdirSync(freshSourceDir, { recursive: true });
+    fs.writeFileSync(path.join(freshSourceDir, 'creds.json'), JSON.stringify({ registered: true, fresh: true }));
+    await instance.adoptPairingSession(freshSourceDir);
+    await new Promise((resolve) => setImmediate(resolve));
+    assert.equal(instance.sessionResetRequired, false, 'fresh credentials must clear the per-instance Bad MAC latch');
+    assert.equal(sockets.length, 3, 'fresh credentials must create a new socket after quarantine');
+    assert.equal(instance.sock.ev.listenerCount('messages.upsert'), 1, 'freshly paired socket must register the message handler');
+    console.log(`PASS: initial, adopted, and fresh-paired BotInstance connections loaded ${instance.commands.size} commands/aliases and recovered from Bad MAC quarantine.`);
     passed = true;
   } finally {
     fs.rmSync(baseDir, { recursive: true, force: true });
