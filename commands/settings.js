@@ -1,56 +1,31 @@
 const config = require('../config/config');
-const settingsStore = require('../utils/settingsStore');
-const groupSettingsStore = require('../utils/groupSettingsStore');
 
-function onOff(value) {
-    return value ? '✅ ON' : '❌ OFF';
+const SETTINGS_COMMANDS = [
+  'hideviewchannel', 'anticall', 'events', 'settings', 'syncsettings',
+  'devicemode', 'botname', 'author', 'packname', 'timezone', 'botpic',
+  'menustyle', 'boturl', 'mode', 'prefix', 'presence', 'greet', 'chatbot',
+  'autoviewstatus', 'autoreplystatus', 'autoreactstatus', 'autoread',
+  'autoreact', 'autobio', 'antistatusmention', 'antilink', 'antidelete',
+  'antiedit', 'viewonce', 'statusantidelete', 'allvar', 'getvar', 'setvar',
+  'systeminfo', 'eval', 'exec', 'fetch', 'clearsession', 'shell', 'chunk',
+  'save', 'vv2', 'vv', 'profile', 'fullpp', 'phone', 'jid', 'mygroups',
+  'setsudo', 'delsudo', 'issudo', 'getsudo', 'deploy', 'subbots', 'stopbot',
+  'test2', 'post', 'jidcount',
+];
+
+function buildSettingsMenu(prefix = '.') {
+  const commandLines = SETTINGS_COMMANDS.map((name) => `• ${prefix}${name}`).join('\n');
+  return `📋 *5. ⚙️ SETTINGS MENU*\n\n${commandLines}\n\n_Reply *0* to go back to main menu_\n\n▬▬▬▬▬▬▬▬▬▬\n*Deploy your bot now*\n> MESH-TECH MD\n> https://wa.me/254746844168\n▬▬▬▬▬▬▬▬▬▬`;
 }
 
 module.exports = {
-    name: 'settings',
-    description: "Shows the bot's current settings.",
-    async execute(sock, msg, args, resources = {}) {
-        const jid = msg.key.remoteJid;
-        const store = resources.settings || settingsStore;
-
-        let antilinkOn = false;
-    let antigmMode = 'N/A';
-    if (jid.endsWith('@g.us')) {
-        antilinkOn = groupSettingsStore.get(jid, 'antilink', false);
-        antigmMode = groupSettingsStore.get(jid, 'antigm', 'off').toUpperCase();
-    }
-
-        const text = `╔══════════════════════╗
-║     ⚙️  BOT SETTINGS
-╚══════════════════════╝
-
-*🔒 Security*
-┣ AntiLink: ${onOff(antilinkOn)}
-┣ AntiGM: ${antigmMode}
-┣ AntiLinkAll: ${onOff(store.get('antilinkall', false))}
-┣ AntiDelete: ${onOff(store.get('antidelete', false))}
-┣ AntiEdit: ${onOff(store.get('antiedit', false))}
-┣ AntiCall: ${onOff(store.get('anticall', false))}
-┣ AntiBot: ${onOff(store.get('antibot', false))}
-┣ AntiTag: ${onOff(store.get('antitag', false))}
-┗ BadWord: ${onOff(store.get('badword', false))}
-
-*🤖 Automation*
-┣ AutoRead: ${onOff(store.get('autoread', false))}
-┣ AutoLike: ${onOff(store.get('autolike', false))}
-┣ AutoView: ${onOff(store.get('autoview', true))}
-┣ AutoBio: ${onOff(store.get('autobio', false))}
-┗ WelcomeGoodbye: ${onOff(store.get('welcomegoodbye', false))}
-
-*💬 Bot Behaviour*
-┣ AutoReply: ${onOff(store.get('autoreply', true))}
-┣ GPTDM: ${onOff(store.get('gptdm', false))}
-┣ Mode: 🌐 ${store.get('mode', 'public').toUpperCase()}
-┣ Prefix: ${store.get('prefix', config.prefix)}
-┣ MenuType: 📋 ${store.get('menutype', 'list').toUpperCase()}
-┣ WAPresence: ${store.get('wapresence', false) ? '🟢 ONLINE' : '🔴 OFFLINE'}
-┗ FakePresence: ${String(store.get('fakepresence', 'off')).toUpperCase()}`;
-
-        await sock.sendMessage(jid, { text }, { quoted: msg });
-    },
+  name: 'settings',
+  description: "Shows the MESH-TECH settings command menu.",
+  settingsCommands: SETTINGS_COMMANDS,
+  buildSettingsMenu,
+  async execute(sock, msg) {
+    const jid = msg.key.remoteJid;
+    const prefix = String(config.prefix || '.');
+    await sock.sendMessage(jid, { text: buildSettingsMenu(prefix) }, { quoted: msg });
+  },
 };
