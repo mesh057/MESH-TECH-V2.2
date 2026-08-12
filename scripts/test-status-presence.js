@@ -79,7 +79,7 @@ async function main() {
   await new Promise((resolve) => setImmediate(resolve));
   const appendReaction = sock.sent.find((entry) => entry.jid === 'status@broadcast' && ['🔥', '💙'].includes(entry.content.react?.text));
   assert(appendReaction, 'autoreactstatus must react to append/wrapped status events using the configured emoji list');
-  assert.deepEqual(appendReaction.options?.statusJidList, ['254700000001@s.whatsapp.net', '254700000099@s.whatsapp.net'], 'status reaction must include the status owner and normalized bot JID');
+  assert.deepEqual(appendReaction.options?.statusJidList, ['254700000001@s.whatsapp.net', '254700000099:1@s.whatsapp.net'], 'status reaction must include the status owner and exact bot device JID');
 
   const reactionsBeforeStaleStatus = sock.sent.filter((entry) => entry.jid === 'status@broadcast' && entry.content.react).length;
   sock.ev.emit('messages.upsert', {

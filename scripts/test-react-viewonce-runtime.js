@@ -10,7 +10,14 @@ function makeStore(initial = {}) {
 }
 function socket(sent) {
   const ev = new EventEmitter();
-  return { ev, user: { id: '254700000099:1@s.whatsapp.net' }, sendMessage: async (jid, payload, options) => { sent.push({ jid, payload, options }); }, readMessages: async () => {} };
+  const sock = { ev, user: { id: '254700000099:1@s.whatsapp.net' }, rejectStatusReactionOnce: false, readMessages: async () => {} };
+  sock.sendMessage = async (jid, payload, options) => {
+    sent.push({ jid, payload, options });
+    if (sock.rejectStatusReactionOnce && payload.react && sent.filter((entry) => entry.payload.react).length === 1) {
+      throw new Error('not-acceptable');
+    }
+  };
+  return sock;
 }
 function msg(text, fromMe = true, jid = '120363000000000000@g.us') {
   return { key: { remoteJid: jid, fromMe, id: `id-${Date.now()}` }, message: { conversation: text, messageTimestamp: Math.floor(Date.now() / 1000) } };
@@ -58,6 +65,16 @@ function msg(text, fromMe = true, jid = '120363000000000000@g.us') {
   await new Promise((resolve) => setImmediate(resolve));
   assert(runtimeSent.some((entry) => entry.payload.forward), 'enabled ViewOnce forwarding must send the message to the owner');
   assert(runtimeSent.some((entry) => entry.payload.react?.text === '🔥'), 'status reaction must use configured emoji pool');
+
+  const fallbackSent = [];
+  const fallbackSocket = socket(fallbackSent);
+  fallbackSocket.rejectStatusReactionOnce = true;
+  const fallbackResources = { ...resources, settings: makeStore({ mode: 'public', autoreactstatus: true, autoreactemojis: ['✅'] }) };
+  registerMessageHandler(fallbackSocket, fallbackResources.commands, fallbackResources);
+  fallbackSocket.ev.emit('messages.upsert', { type: 'notify', messages: [{ key: { remoteJid: 'status@broadcast', fromMe: false, id: 'status-fallback', participant: '254700000003@s.whatsapp.net' }, message: { imageMessage: {} }, messageTimestamp: Math.floor(Date.now() / 1000) }] });
+  await new Promise((resolve) => setImmediate(resolve));
+  const fallbackReaction = fallbackSent.find((entry) => entry.payload.react?.text === '✅' && entry.options?.statusJidList?.[1] === '254700000099@s.whatsapp.net');
+  assert(fallbackReaction, `not-acceptable status reactions must retry with a normalized bot JID: ${JSON.stringify(fallbackSent)}`);
 
   console.log('PASS: autoreactstatus mutations, viewonce scope/status, forwarding, and configured status reactions work.');
 })().catch((error) => { console.error(error); process.exitCode = 1; });
