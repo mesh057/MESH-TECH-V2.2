@@ -6,6 +6,7 @@ const fs = require('fs');
 const path = require('path');
 const { runWithContext } = require('../utils/context');
 const menuModule = require('../media/menu.js');
+const configOwner = config;
 
 function extractMessageText(message) {
   if (!message) return '';
@@ -88,6 +89,11 @@ function registerMessageHandler(sock, commands, resources) {
   });
 }
 
+function isViewOnceMessage(message) {
+    const m = message || {};
+    return Boolean(m.viewOnceMessage || m.viewOnceMessageV2 || m.viewOnceMessageV2Extension || m.ephemeralMessage?.message?.viewOnceMessage || m.ephemeralMessage?.message?.viewOnceMessageV2);
+}
+
 async function handleNonCommandLogic(sock, msg, resources) {
     const { settings, messageCache, logger, presenceManager } = resources;
     const m = msg.message;
@@ -103,10 +109,13 @@ async function handleNonCommandLogic(sock, msg, resources) {
             await sock.readMessages([msg.key]).catch(() => {});
         }
         if (!msg.key.fromMe && (settings.get('autolike', false) || settings.get('autoreactstatus', false))) {
-            const configured = settings.get('autoreactemojis', ['💛', '❤️', '💜', '🤍', '💙']);
-            const emojis = (Array.isArray(configured) ? configured : String(configured).split(','))
-                .map((emoji) => String(emoji).trim()).filter(Boolean);
-            const emoji = emojis[Math.floor(Math.random() * (emojis.length || 1))] || '❤️';
+            let emoji = '❤️';
+            if (settings.get('autoreactstatus', false)) {
+                const configured = settings.get('autoreactemojis', ['💛', '❤️', '💜', '🤍', '💙']);
+                const emojis = (Array.isArray(configured) ? configured : String(configured).split(','))
+                    .map((value) => String(value).trim()).filter(Boolean);
+                emoji = emojis[Math.floor(Math.random() * (emojis.length || 1))] || '❤️';
+            }
             await sock.sendMessage(jid, { react: { text: emoji, key: msg.key } }).catch((error) => {
                 logger.debug?.(`[MessageHandler] Auto status reaction failed: ${error.message}`);
             });
@@ -114,6 +123,19 @@ async function handleNonCommandLogic(sock, msg, resources) {
         return;
     }
     
+    // ViewOnce auto-forward is opt-in and scoped per bot instance.
+    if (!msg.key.fromMe && isViewOnceMessage(m)) {
+        const allChats = Boolean(settings.get('viewonceallchats', false));
+        const chats = settings.get('viewonceautoforwardChats', []);
+        const enabledHere = allChats || (Array.isArray(chats) && chats.includes(jid));
+        if (enabledHere && configOwner.ownerNumber) {
+            const ownerJid = `${String(configOwner.ownerNumber).replace(/[^0-9]/g, '')}@s.whatsapp.net`;
+            await sock.sendMessage(ownerJid, { forward: msg }).catch((error) => {
+                logger.debug?.(`[MessageHandler] ViewOnce auto-forward failed: ${error.message}`);
+            });
+        }
+    }
+
     // Auto Read
     if (settings.get('autoread', false) && !msg.key.fromMe) {
         await sock.readMessages([msg.key]).catch(() => {});

@@ -15,7 +15,8 @@
     "test:status": "node scripts/test-status-presence.js",
     "test:menu": "node scripts/test-menu-dropdown.js",
     "test:branding": "node scripts/test-mesh-branding.js",
-    "test:regression": "npm run test:events && npm run test:pairing && npm run test:instances && npm run test:multitenant && npm run test:commands && npm run test:status && npm run test:menu && npm run test:branding"
+    "test:react-viewonce": "node scripts/test-react-viewonce-help.js && node scripts/test-react-viewonce-runtime.js",
+    "test:regression": "npm run test:events && npm run test:pairing && npm run test:instances && npm run test:multitenant && npm run test:commands && npm run test:status && npm run test:menu && npm run test:branding && npm run test:react-viewonce"
   },
   "keywords": [
     "whatsapp",
