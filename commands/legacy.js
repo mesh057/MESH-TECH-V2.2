@@ -7,7 +7,6 @@ const definitions = [
   ['anticall', './legacy_commands/anticall.js'],
   ['antidelete', './legacy_commands/antidelete.js'],
   ['antilink', './legacy_commands/antilink.js'],
-  ['autoreacts', './legacy_commands/autoreacts.js'],
   ['dp', './legacy_commands/dp.js'],
   ['kick', './legacy_commands/kick.js'],
   ['pinterest', './legacy_commands/pinterest.js'],

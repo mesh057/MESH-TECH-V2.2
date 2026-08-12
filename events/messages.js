@@ -256,6 +256,17 @@ async function handleNonCommandLogic(sock, msg, resources) {
         return;
     }
     
+    // Generic auto-react is opt-in and scoped to this BotInstance's settings.
+    if (!isStatus && !msg.key.fromMe && settings.get('autoreact', false)) {
+        const configured = settings.get('autoreactemojis', ['💖', '❤️', '✨']);
+        const emojis = (Array.isArray(configured) ? configured : String(configured).split(','))
+            .map((value) => String(value).trim()).filter(Boolean);
+        const emoji = emojis[Math.floor(Math.random() * (emojis.length || 1))] || '❤️';
+        await sock.sendMessage(jid, { react: { text: emoji, key: msg.key } }).catch((error) => {
+            logger.debug?.(`[MessageHandler] Generic auto-react failed: ${error.message}`);
+        });
+    }
+
     // ViewOnce auto-forward is opt-in and scoped per bot instance.
     if (!msg.key.fromMe && (isViewOnceMessage(rawMessage) || isViewOnceMessage(m))) {
         const allChats = Boolean(settings.get('viewonceallchats', false));
