@@ -21,11 +21,13 @@ function msg(text, fromMe = true, jid = '120363000000000000@g.us') {
   const store = makeStore({ prefix: '.' });
   const s = socket(sent);
   await autoreactstatus.execute(s, msg('.autoreactstatus on'), ['on'], { settings: store });
-  await autoreactstatus.execute(s, msg('.autoreactstatus emojis 👍,❤️,🔥'), ['emojis', '👍,❤️,🔥'], { settings: store });
+  const customEmojis = ['👍', '❤️', '🔥', '😂', '🥳', '😎', '🤖', '🎉', '🚀', '💯', '👏', '🙌', '✨', '🌟', '💚'];
+  await autoreactstatus.execute(s, msg(`.autoreactstatus emojis ${customEmojis.join(',')}`), ['emojis', customEmojis.join(',')], { settings: store });
   assert.equal(store.get('autoreactstatus'), true);
-  assert.deepEqual(store.get('autoreactemojis'), ['👍', '❤️', '🔥']);
+  assert.deepEqual(store.get('autoreactemojis'), customEmojis, 'all custom emojis must persist without a count cap');
   await autoreactstatus.execute(s, msg('.autoreactstatus status'), ['status'], { settings: store });
-  assert.match(sent.at(-1).payload.text, /👍, ❤️, 🔥/);
+  assert.match(sent.at(-1).payload.text, /💚/);
+  assert.match(sent.at(-1).payload.text, /✨/);
 
   const viewStore = makeStore({ prefix: '.' });
   await viewonce.execute(s, msg('.viewonce on'), ['on'], { settings: viewStore });

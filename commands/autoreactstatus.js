@@ -2,12 +2,12 @@ const DEFAULT_EMOJIS = ['💛', '❤️', '💜', '🤍', '💙'];
 
 function normalizeEmojis(value) {
   const list = Array.isArray(value) ? value : String(value || '').split(',');
-  return list.map((emoji) => String(emoji).trim()).filter(Boolean).slice(0, 12);
+  return list.map((emoji) => String(emoji).trim()).filter(Boolean);
 }
 
 function buildHelp(prefix, enabled, emojis) {
   const marks = normalizeEmojis(emojis).join(', ') || DEFAULT_EMOJIS.join(', ');
-  return `*😍 Auto React Status*\n\nAutomatically reacts with an emoji to every status your contacts post.\n\n🔹 *Enabled:* ${enabled ? '✅ ON' : '❌ OFF'}\n🔹 *Emojis:* ${marks}\n\n*🛠 Usage:*\n▸ ${prefix}autoreactstatus on — Enable auto-react\n▸ ${prefix}autoreactstatus off — Disable auto-react\n▸ ${prefix}autoreactstatus emojis 👍,❤️,🔥 — Set reaction emojis\n▸ ${prefix}autoreactstatus status — Show current settings\n\n_Tip: Separate multiple emojis with commas. A random one will be picked for each status._`;
+  return `*😍 Auto React Status*\n\nAutomatically reacts with an emoji to every status your contacts post.\n\n🔹 *Enabled:* ${enabled ? '✅ ON' : '❌ OFF'}\n🔹 *Emojis:* ${marks}\n\n*🛠 Usage:*\n▸ ${prefix}autoreactstatus on — Enable auto-react\n▸ ${prefix}autoreactstatus off — Disable auto-react\n▸ ${prefix}autoreactstatus emojis 👍,❤️,🔥,... — Set any number of reaction emojis\n▸ ${prefix}autoreactstatus status — Show current settings\n\n_Tip: Separate any number of emojis with commas. The list is saved exactly as entered. A random one will be picked for each status._`;
 }
 
 module.exports = {
