@@ -1,4 +1,9 @@
+const config = require('../config/config');
 const DEFAULT_EMOJIS = ['💛', '❤️', '💜', '🤍', '💙'];
+
+function digits(value) {
+  return String(value || '').replace(/\D/g, '');
+}
 
 function normalizeEmojis(value) {
   const list = Array.isArray(value) ? value : String(value || '').split(',');
@@ -24,8 +29,12 @@ module.exports = {
     const emojis = normalizeEmojis(store?.get('autoreactemojis', DEFAULT_EMOJIS));
     const mode = String(args[0] || '').toLowerCase();
 
-    if (!msg.key.fromMe) {
-      return sock.sendMessage(jid, { text: '❌ Only the bot owner can change auto-react status settings.' }, { quoted: msg });
+    const senderJid = msg.key.participant || msg.key.remoteJid;
+    const senderNumber = digits(String(senderJid || '').split('@')[0]);
+    const ownerNumber = digits(config.ownerNumber);
+    const isOwner = Boolean(msg.key.fromMe || (ownerNumber && senderNumber === ownerNumber));
+    if (!isOwner) {
+      return sock.sendMessage(jid, { text: '❌ Only the configured bot owner can change auto-react status settings.' }, { quoted: msg });
     }
     if (mode === 'emojis') {
       const next = normalizeEmojis(args.slice(1).join(' '));

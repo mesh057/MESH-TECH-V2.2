@@ -49,7 +49,7 @@ require.cache[baileysPath] = {
     fetchLatestBaileysVersion: async () => ({ version: [2, 3000, 0] }),
     makeCacheableSignalKeyStore: (keys) => keys,
     jidNormalizedUser: (jid) => String(jid).replace(/:.*(?=@)/, ''),
-    DisconnectReason: { loggedOut: 401 },
+    DisconnectReason: { loggedOut: 401, badSession: 500 },
   },
 };
 
@@ -112,7 +112,15 @@ async function main() {
     assert.equal(instance.sock.sentMessages.length, 1);
     assert.match(instance.sock.sentMessages[0].payload.text, /Type \*\.menu\*/);
     assert.equal(instance.sock.sentMessages[0].jid, '254700000099@s.whatsapp.net');
-    console.log(`PASS: initial and adopted BotInstance connections loaded ${instance.commands.size} commands/aliases and sent welcome messages.`);
+
+    instance.sock.ev.emit('connection.update', {
+      connection: 'close',
+      lastDisconnect: { error: { message: 'Bad MAC', output: { statusCode: 500 } } },
+    });
+    await new Promise((resolve) => setImmediate(resolve));
+    assert.equal(instance.sessionResetRequired, true, 'Bad MAC must quarantine the corrupted session');
+    assert.equal(fs.existsSync(instance.authDir), false, 'corrupted auth files must be cleared');
+    console.log(`PASS: initial and adopted BotInstance connections loaded ${instance.commands.size} commands/aliases and quarantined Bad MAC sessions.`);
     passed = true;
   } finally {
     fs.rmSync(baseDir, { recursive: true, force: true });
