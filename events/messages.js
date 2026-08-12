@@ -1,6 +1,6 @@
 'use strict';
 
-const { proto, downloadMediaMessage } = require('@whiskeysockets/baileys');
+const { proto, downloadMediaMessage, normalizeMessageContent, isJidStatusBroadcast } = require('@whiskeysockets/baileys');
 const config = require('../config/config');
 const fs = require('fs');
 const path = require('path');
@@ -19,6 +19,11 @@ function extractMessageText(message) {
   );
 }
 
+function isStatusChat(jid) {
+  const value = String(jid || '');
+  return value === 'status@broadcast' || isJidStatusBroadcast(value) || value.endsWith('@broadcast');
+}
+
 function registerMessageHandler(sock, commands, resources) {
   const { settings, groupSettings, messageCache, commandToggle, logger } = resources;
   
@@ -26,7 +31,7 @@ function registerMessageHandler(sock, commands, resources) {
   const CUTOFF_TIME = Math.floor(Date.now() / 1000);
 
   sock.ev.on('messages.upsert', async ({ messages, type }) => {
-    if (type !== 'notify') return;
+    if (type !== 'notify' && type !== 'append') return;
 
     for (const msg of messages) {
       try {
@@ -48,9 +53,9 @@ function registerMessageHandler(sock, commands, resources) {
         const prefix = settings.get('prefix', config.prefix);
         const mode = settings.get('mode', config.WORK_TYPE); // 'public' or 'private'
         
-        if (mode === 'private' && !isMe && msg.key.remoteJid !== 'status@broadcast') continue;
+        if (mode === 'private' && !isMe && !isStatusChat(msg.key.remoteJid)) continue;
 
-        const text = extractMessageText(msg.message).trim();
+        const text = extractMessageText(normalizeMessageContent(msg.message) || msg.message).trim();
         if (text === '0' && resources.menuState?.get(senderJid) === 'settings') {
             resources.menuState.delete(senderJid);
             const timezone = config.timezone || 'Africa/Nairobi';
@@ -96,15 +101,18 @@ function isViewOnceMessage(message) {
 
 async function handleNonCommandLogic(sock, msg, resources) {
     const { settings, messageCache, logger, presenceManager } = resources;
-    const m = msg.message;
+    const rawMessage = msg.message;
+    const m = normalizeMessageContent(rawMessage) || rawMessage;
     const jid = msg.key.remoteJid;
+    const isStatus = isStatusChat(jid);
 
     if (presenceManager) {
         await presenceManager.sendHumanPresence(jid);
     }
 
     // Status automation is intentionally scoped to this BotInstance's settings.
-    if (jid === 'status@broadcast') {
+    if (isStatus) {
+        logger.info?.(`[MessageHandler] Status event received: type=${msg.messageTimestamp ? 'notify' : 'append'} id=${msg.key.id || 'unknown'} participant=${msg.key.participant || 'unknown'}`);
         if (!msg.key.fromMe && settings.get('autoview', true)) {
             await sock.readMessages([msg.key]).catch(() => {});
         }
@@ -116,15 +124,18 @@ async function handleNonCommandLogic(sock, msg, resources) {
                     .map((value) => String(value).trim()).filter(Boolean);
                 emoji = emojis[Math.floor(Math.random() * (emojis.length || 1))] || '❤️';
             }
-            await sock.sendMessage(jid, { react: { text: emoji, key: msg.key } }).catch((error) => {
-                logger.debug?.(`[MessageHandler] Auto status reaction failed: ${error.message}`);
-            });
+            try {
+                await sock.sendMessage('status@broadcast', { react: { text: emoji, key: msg.key } });
+                logger.info?.(`[MessageHandler] Auto status reaction sent: ${emoji} for ${msg.key.id || 'unknown'}`);
+            } catch (error) {
+                logger.warn?.(`[MessageHandler] Auto status reaction failed: ${error.message}`);
+            }
         }
         return;
     }
     
     // ViewOnce auto-forward is opt-in and scoped per bot instance.
-    if (!msg.key.fromMe && isViewOnceMessage(m)) {
+    if (!msg.key.fromMe && (isViewOnceMessage(rawMessage) || isViewOnceMessage(m))) {
         const allChats = Boolean(settings.get('viewonceallchats', false));
         const chats = settings.get('viewonceautoforwardChats', []);
         const enabledHere = allChats || (Array.isArray(chats) && chats.includes(jid));

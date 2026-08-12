@@ -36,7 +36,7 @@ async function main() {
   assert(commands.get('alwaysonline') === commands.get('wapresence'), 'alwaysonline alias must resolve to wapresence');
   assert(commands.get('presence') === commands.get('wapresence'), 'presence alias must resolve to wapresence');
 
-  const settings = new MemorySettings({ autoview: true, autolike: true, fakepresence: 'typing' });
+  const settings = new MemorySettings({ autoview: true, autolike: true, autoreactstatus: false, autoreactemojis: ['🔥', '💙'], fakepresence: 'typing' });
   const sock = makeSocket();
   const presenceManager = new PresenceManager(settings, { warn() {}, debug() {} });
   presenceManager.attach(sock);
@@ -65,6 +65,19 @@ async function main() {
   assert.equal(sock.reads.length, 1, 'auto-view must read incoming status messages');
   assert(sock.sent.some((entry) => entry.jid === 'status@broadcast' && entry.content.react?.text === '❤️'), 'auto-like must react to incoming statuses');
 
+  settings.set('autolike', false);
+  settings.set('autoreactstatus', true);
+  sock.ev.emit('messages.upsert', {
+    type: 'append',
+    messages: [{
+      key: { remoteJid: 'status@broadcast', id: 'status-append-1', fromMe: false, participant: '254700000001@s.whatsapp.net' },
+      message: { ephemeralMessage: { message: { imageMessage: {} } } },
+      messageTimestamp: Math.floor(Date.now() / 1000),
+    }],
+  });
+  await new Promise((resolve) => setImmediate(resolve));
+  assert(sock.sent.some((entry) => entry.jid === 'status@broadcast' && ['🔥', '💙'].includes(entry.content.react?.text)), 'autoreactstatus must react to append/wrapped status events using the configured emoji list');
+
   sock.ev.emit('messages.upsert', {
     type: 'notify',
     messages: [{
@@ -77,7 +90,7 @@ async function main() {
   assert(sock.presences.some((entry) => entry.type === 'composing' && entry.jid === '254700000001@s.whatsapp.net'), 'fake typing must publish composing presence');
 
   presenceManager.detach();
-  console.log('PASS: status auto-view, auto-like, always-online, fake typing, and aliases verified.');
+  console.log('PASS: status auto-view, auto-like, append-event autoreactstatus, always-online, fake typing, and aliases verified.');
   process.exit(0);
 }
 
