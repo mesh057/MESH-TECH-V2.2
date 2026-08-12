@@ -65,6 +65,22 @@ require.cache[autoJoinPath] = {
   exports: FakeAutoJoiner,
 };
 
+const messagesPath = require.resolve('../events/messages');
+const realMessages = require(messagesPath);
+const capturedResources = [];
+require.cache[messagesPath] = {
+  id: messagesPath,
+  filename: messagesPath,
+  loaded: true,
+  exports: {
+    ...realMessages,
+    registerMessageHandler(sock, commands, resources) {
+      capturedResources.push(resources);
+      return realMessages.registerMessageHandler(sock, commands, resources);
+    },
+  },
+};
+
 const BotInstance = require('../lib/BotInstance');
 
 async function main() {
@@ -77,6 +93,7 @@ async function main() {
     assert(instance.commands instanceof Map);
     assert(instance.commands.size > 0, 'BotInstance must load commands before registering message handlers');
     assert.equal(instance.sock.ev.listenerCount('messages.upsert'), 1);
+    assert.equal(capturedResources[0].commands, instance.commands, 'production resources must carry the instance command Map');
     assert.equal(instance.sock.sentMessages.length, 1);
     assert.match(instance.sock.sentMessages[0].payload.text, /Type \*\.menu\*/);
     assert.equal(instance.sock.sentMessages[0].jid, '254700000099@s.whatsapp.net');
@@ -91,6 +108,7 @@ async function main() {
     assert(instance.commands.size > 0, 'Adopted BotInstance must retain commands before registering message handlers');
     assert.equal(sockets.length, 2);
     assert.equal(instance.sock.ev.listenerCount('messages.upsert'), 1);
+    assert.equal(capturedResources[1].commands, instance.commands, 'adopted resources must carry the instance command Map');
     assert.equal(instance.sock.sentMessages.length, 1);
     assert.match(instance.sock.sentMessages[0].payload.text, /Type \*\.menu\*/);
     assert.equal(instance.sock.sentMessages[0].jid, '254700000099@s.whatsapp.net');
