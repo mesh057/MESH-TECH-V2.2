@@ -29,7 +29,7 @@ const commands = new Map([
     },
   }, { key: { remoteJid: '254700000000@s.whatsapp.net' } }, [], commands);
 
-  assert.equal(sent.length, 1);
+  assert.equal(sent.length, 2);
   const { payload } = sent[0];
   assert.match(payload.text, /3 COMMANDS LOADED/);
   assert.equal(payload.buttonText, 'VIEW 3 COMMANDS');
@@ -37,6 +37,8 @@ const commands = new Map([
   const rows = payload.sections.flatMap((section) => section.rows);
   assert.deepEqual(rows.map((row) => row.rowId).sort(), ['.autoview', '.menu', '.ping']);
   assert.ok(rows.some((row) => row.title === '.autoview'));
+  assert.match(sent[1].payload.text, /\.menu/);
+  assert.equal((sent[1].payload.text.match(/\u200e/g) || []).length, 0);
 
   const productionShapeSent = [];
   await menuCommand.execute({
@@ -45,8 +47,10 @@ const commands = new Map([
       return payload;
     },
   }, { key: { remoteJid: '254700000000@s.whatsapp.net' } }, [], { commands });
+  assert.equal(productionShapeSent.length, 2);
   assert.match(productionShapeSent[0].payload.text, /3 COMMANDS LOADED/);
   assert.equal(productionShapeSent[0].payload.sections.flatMap((section) => section.rows).length, 3);
+  assert.match(productionShapeSent[1].payload.text, /\.menu/);
 
   const realCommands = loadCommands(path.join(__dirname, '..', 'commands'));
   const realSent = [];
@@ -57,10 +61,11 @@ const commands = new Map([
     },
   }, { key: { remoteJid: '254700000000@s.whatsapp.net' } }, [], realCommands);
 
-  assert.equal(realSent.length, 1);
+  assert.equal(realSent.length, 2);
   const realCount = uniqueCommandCount(realCommands);
   assert.match(realSent[0].payload.text, new RegExp(`${realCount} COMMANDS LOADED`));
   assert.ok(realSent[0].payload.sections.length > 0);
+  assert.match(realSent[1].payload.text, /\.alive/);
 
   const fallbackSent = [];
   let firstAttempt = true;
@@ -76,7 +81,10 @@ const commands = new Map([
   }, { key: { remoteJid: '254700000000@s.whatsapp.net' } }, [], realCommands);
   assert.equal(fallbackSent.length, 1);
   assert.match(fallbackSent[0].payload.text, new RegExp(`${realCount} 𝗟𝗼𝗮𝗱𝗲𝗱`));
-  console.log(`PASS: menu dropdown exposes ${realCount} real unique commands and text fallback.`);
+  assert.match(fallbackSent[0].payload.text, /𝗖𝗢𝗠𝗠𝗔𝗡𝗗 𝗠𝗘𝗡𝗨/);
+  assert.match(fallbackSent[0].payload.text, /\.menu/);
+  assert.equal((fallbackSent[0].payload.text.match(/\u200e/g) || []).length, 0, 'fallback must not hide commands behind zero-width padding');
+  console.log(`PASS: menu dropdown exposes ${realCount} real unique commands and visible text fallback.`);
 })().catch((error) => {
   console.error(error);
   process.exitCode = 1;

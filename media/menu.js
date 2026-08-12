@@ -1,7 +1,8 @@
 'use strict';
 
 const ZERO_WIDTH = String.fromCharCode(8206);
-const READ_MORE = ZERO_WIDTH.repeat(2001);
+const READ_MORE = '';
+const config = require('../config/config');
 
 function getDateTime(timezone = 'Africa/Nairobi') {
   const now = new Date();
@@ -85,9 +86,9 @@ const CATEGORY_EMOJIS = {
   GENERAL: '✨', STALK: '🔍', MISC: '🧩', EDIT: '🎨',
 };
 
-function formatGroup(title, commands) {
+function formatGroup(title, commands, prefix = '.') {
   const emoji = CATEGORY_EMOJIS[title] || '⚡';
-  const lines = commands.map((command, index) => numberedLine(index, String(command.name)));
+  const lines = commands.map((command, index) => numberedLine(index, `${prefix}${String(command.name)}`));
   return `╔═❖•⊰ ${emoji} *${title} MENU* ⊱•❖═╗\n${lines.join('\n')}\n╚════════════════════╝`;
 }
 
@@ -104,9 +105,10 @@ function getMenu(commands = new Map(), timezone = 'Africa/Nairobi', userCount = 
       return Math.max(1, parseInt(out, 10) || 1);
     } catch { return 1; }
   })();
+  const prefix = String(config.prefix || '.');
   const sections = groups.length
-    ? groups.map(([title, entries]) => formatGroup(title, entries)).join(`\n${READ_MORE}\n`)
-    : formatGroup('COMMANDS', [{ name: 'No commands loaded' }]);
+    ? groups.map(([title, entries]) => formatGroup(title, entries, prefix)).join('\n\n')
+    : formatGroup('COMMANDS', [{ name: 'No commands loaded' }], prefix);
 
   return `${getStatusBox(timezone, liveUserCount, loaded.length, connectedBotCount)}
 ╔═❖•⊰ *𝗖𝗢𝗠𝗠𝗔𝗡𝗗 𝗠𝗘𝗡𝗨* ⊱•❖═╗

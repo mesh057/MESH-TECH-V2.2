@@ -58,7 +58,14 @@ module.exports = {
     // Baileys renders this payload as WhatsApp's native list/dropdown menu.
     // Keep the command count in the title so it remains visible before opening it.
     try {
-      return await sock.sendMessage(jid, listMessage, { quoted: msg });
+      const nativeResult = await sock.sendMessage(jid, listMessage, { quoted: msg });
+      // Some WhatsApp clients accept the native list payload but render only
+      // its header. Follow it with a visible text catalog so commands remain
+      // accessible even when the client fails to expose list rows.
+      const timezone = detectTimezone(msg.key.participant || jid);
+      const visibleCatalog = menuModule.getMenu(commands, timezone, Number(global.activeUserCount || 0));
+      await sock.sendMessage(jid, { text: visibleCatalog }, { quoted: msg });
+      return nativeResult;
     } catch (error) {
       // Older WhatsApp clients can reject native lists; never hide the commands.
       const timezone = detectTimezone(msg.key.participant || jid);
