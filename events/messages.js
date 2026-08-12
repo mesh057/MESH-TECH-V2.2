@@ -7,6 +7,7 @@ const path = require('path');
 const { runWithContext } = require('../utils/context');
 const menuModule = require('../media/menu.js');
 const configOwner = config;
+const STATUS_REJECTION_COOLDOWN_MS = 15 * 60 * 1000;
 
 function extractMessageText(message) {
   if (!message) return '';
@@ -24,11 +25,66 @@ function isStatusChat(jid) {
   return value === 'status@broadcast' || isJidStatusBroadcast(value) || value.endsWith('@broadcast');
 }
 
+function ownerJid() {
+  const number = String(configOwner.ownerNumber || '').replace(/[^0-9]/g, '');
+  return number ? `${number}@s.whatsapp.net` : null;
+}
+
+async function recoverDeletedMessage(sock, key, resources) {
+  const { settings, messageCache, logger } = resources;
+  if (!settings.get('antidelete', false) || !key?.remoteJid || !key?.id) return;
+
+  const destination = settings.get('antideleteDest', 'p') === 'g'
+    ? key.remoteJid
+    : ownerJid();
+  if (!destination) {
+    logger.warn?.('[MessageHandler] Antidelete enabled but no owner number is configured');
+    return;
+  }
+
+  const cached = messageCache.get(key.remoteJid, key.id);
+  if (!cached) {
+    await sock.sendMessage(destination, {
+      text: `🗑️ *Deleted message detected*\\n\\nMessage ID: ${key.id}\\nThe original content was not cached before deletion.`,
+    }).catch((error) => logger.warn?.(`[MessageHandler] Antidelete notice failed: ${error.message}`));
+    return;
+  }
+
+  const header = `🗑️ *Deleted message recovered*\\nFrom: ${cached.senderJid || key.participant || key.remoteJid}\\n\\n`;
+  try {
+    if (cached.type === 'text') {
+      await sock.sendMessage(destination, { text: `${header}${cached.text || '[empty text]'}` });
+    } else if (typeof sock.copyNForward === 'function' && cached.originalMessage) {
+      await sock.sendMessage(destination, { text: header.trim() });
+      await sock.copyNForward(destination, cached.originalMessage, true);
+    } else if (cached.rawMessage) {
+      await sock.sendMessage(destination, cached.rawMessage);
+    } else {
+      await sock.sendMessage(destination, { text: `${header}[${cached.type || 'media'} content recovered]\\n${cached.text || ''}` });
+    }
+    logger.info?.(`[MessageHandler] Antidelete recovered ${key.id} to ${destination}`);
+  } catch (error) {
+    logger.warn?.(`[MessageHandler] Antidelete recovery failed for ${key.id}: ${error.message}`);
+  }
+}
+
 function registerMessageHandler(sock, commands, resources) {
   const { settings, groupSettings, messageCache, commandToggle, logger } = resources;
+  // Per-handler state keeps one tenant's privacy rejection from suppressing
+  // diagnostics for another tenant. It also resets naturally on reconnect.
+  resources.statusReactionRejections ||= new Map();
   
   // Per-instance cutoff to avoid processing old messages
   const CUTOFF_TIME = Math.floor(Date.now() / 1000);
+
+  sock.ev.on('messages.update', async (updates) => {
+    for (const entry of updates || []) {
+      const protocol = entry?.update?.message?.protocolMessage;
+      const revokeType = proto.Message?.ProtocolMessage?.Type?.REVOKE;
+      if (!protocol || (revokeType !== undefined && protocol.type !== revokeType)) continue;
+      await recoverDeletedMessage(sock, protocol.key || entry.key, resources);
+    }
+  });
 
   sock.ev.on('messages.upsert', async ({ messages, type }) => {
     if (type !== 'notify' && type !== 'append') return;
@@ -36,6 +92,13 @@ function registerMessageHandler(sock, commands, resources) {
     for (const msg of messages) {
       try {
         if (!msg.message) continue;
+
+        const protocol = msg.message.protocolMessage;
+        const revokeType = proto.Message?.ProtocolMessage?.Type?.REVOKE;
+        if (protocol && (revokeType === undefined || protocol.type === revokeType)) {
+          await recoverDeletedMessage(sock, protocol.key || msg.key, resources);
+          continue;
+        }
 
         const msgTimestamp = Number(msg.messageTimestamp);
         // Status updates can be delivered after login with the timestamp of the
@@ -48,6 +111,10 @@ function registerMessageHandler(sock, commands, resources) {
           logger.info?.(`[MessageHandler] Status upsert received: type=${type} id=${msg.key?.id || 'unknown'} timestamp=${msgTimestamp || 'unknown'} fromMe=${Boolean(msg.key?.fromMe)} participant=${msg.key?.participant || 'unknown'}`);
         }
         if (msgTimestamp && msgTimestamp < CUTOFF_TIME && !isStatusEvent) continue;
+
+        // Cache every incoming message, including commands, before dispatch so
+        // a later revoke event can recover it for the owner inbox.
+        cacheMessageForAntidelete(messageCache, msg, logger);
 
         const senderJid = msg.key.participant || msg.key.remoteJid;
         const isMe = msg.key.fromMe;
@@ -103,6 +170,31 @@ function registerMessageHandler(sock, commands, resources) {
   });
 }
 
+function cacheMessageForAntidelete(messageCache, msg, logger) {
+    try {
+        const jid = msg.key?.remoteJid;
+        const id = msg.key?.id;
+        if (!jid || !id || !msg.message) return;
+        const m = normalizeMessageContent(msg.message) || msg.message;
+        const senderJid = msg.key.participant || jid;
+        if (m.imageMessage) {
+            messageCache.set(jid, id, { type: 'image', text: m.imageMessage.caption || '', rawMessage: m, originalMessage: msg, senderJid });
+        } else if (m.videoMessage) {
+            messageCache.set(jid, id, { type: 'video', text: m.videoMessage.caption || '', rawMessage: m, originalMessage: msg, senderJid });
+        } else {
+            const mediaType = ['audioMessage', 'documentMessage', 'stickerMessage', 'contactMessage', 'locationMessage'].find((key) => m[key]);
+            const plainText = extractMessageText(m);
+            if (mediaType) {
+                messageCache.set(jid, id, { type: mediaType.replace('Message', ''), text: plainText, rawMessage: m, originalMessage: msg, senderJid });
+            } else if (plainText) {
+                messageCache.set(jid, id, { type: 'text', text: plainText, rawMessage: m, originalMessage: msg, senderJid });
+            }
+        }
+    } catch (error) {
+        logger.debug?.(`[MessageHandler] Antidelete cache skipped: ${error.message}`);
+    }
+}
+
 function isViewOnceMessage(message) {
     const m = message || {};
     return Boolean(m.viewOnceMessage || m.viewOnceMessageV2 || m.viewOnceMessageV2Extension || m.ephemeralMessage?.message?.viewOnceMessage || m.ephemeralMessage?.message?.viewOnceMessageV2);
@@ -147,7 +239,15 @@ async function handleNonCommandLogic(sock, msg, resources) {
             } catch (error) {
                 const message = String(error?.message || error);
                 if (/not[- ]acceptable/i.test(message)) {
-                    logger.warn?.(`[MessageHandler] Auto status reaction rejected by WhatsApp: ${message}; verify the status owner has the bot number saved and that status privacy allows the bot account`);
+                    const participant = String(msg.key.participant || 'unknown');
+                    const now = Date.now();
+                    const lastRejectedAt = resources.statusReactionRejections.get(participant) || 0;
+                    if (now - lastRejectedAt >= STATUS_REJECTION_COOLDOWN_MS) {
+                        resources.statusReactionRejections.set(participant, now);
+                        logger.warn?.(`[MessageHandler] Auto status reaction rejected by WhatsApp for ${participant}: ${message}; verify the status owner has the bot number saved and that status privacy allows the bot account`);
+                    } else {
+                        logger.debug?.(`[MessageHandler] Suppressed repeated not-acceptable status reaction rejection for ${participant}`);
+                    }
                 } else {
                     logger.warn?.(`[MessageHandler] Auto status reaction failed: ${message}`);
                 }
@@ -174,30 +274,9 @@ async function handleNonCommandLogic(sock, msg, resources) {
         await sock.readMessages([msg.key]).catch(() => {});
     }
 
-    // Cache message for antidelete/edit
-    try {
-        const senderJid = msg.key.participant || msg.key.remoteJid;
-        if (m.imageMessage) {
-            messageCache.set(jid, msg.key.id, {
-                type: 'image',
-                text: m.imageMessage.caption || '',
-                rawMessage: { imageMessage: m.imageMessage },
-                senderJid,
-            });
-        } else if (m.videoMessage) {
-            messageCache.set(jid, msg.key.id, {
-                type: 'video',
-                text: m.videoMessage.caption || '',
-                rawMessage: { videoMessage: m.videoMessage },
-                senderJid,
-            });
-        } else {
-            const plainText = extractMessageText(m);
-            if (plainText) {
-                messageCache.set(jid, msg.key.id, { type: 'text', text: plainText, senderJid });
-            }
-        }
-    } catch (e) {}
+    // Antidelete caching occurs before command/non-command dispatch so command
+    // messages are recoverable too.
+
 }
 
 module.exports = { registerMessageHandler };

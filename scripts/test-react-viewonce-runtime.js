@@ -1,6 +1,9 @@
 const assert = require('assert');
 const EventEmitter = require('events');
 const { registerMessageHandler } = require('../events/messages');
+const MessageCache = require('../utils/messageCache');
+const config = require('../config/config');
+const { proto } = require('@whiskeysockets/baileys');
 const autoreactstatus = require('../commands/autoreactstatus');
 const viewonce = require('../commands/viewonce');
 
@@ -10,9 +13,10 @@ function makeStore(initial = {}) {
 }
 function socket(sent) {
   const ev = new EventEmitter();
-  const sock = { ev, user: { id: '254700000099:1@s.whatsapp.net' }, rejectStatusReactionOnce: false, readMessages: async () => {} };
+  const sock = { ev, user: { id: '254700000099:1@s.whatsapp.net' }, rejectStatusReactionOnce: false, rejectStatusReaction: false, readMessages: async () => {} };
   sock.sendMessage = async (jid, payload, options) => {
     sent.push({ jid, payload, options });
+    if (sock.rejectStatusReaction && payload.react) throw new Error('not-acceptable');
     if (sock.rejectStatusReactionOnce && payload.react && sent.filter((entry) => entry.payload.react).length === 1) {
       throw new Error('not-acceptable');
     }
@@ -51,7 +55,7 @@ function msg(text, fromMe = true, jid = '120363000000000000@g.us') {
   const resources = {
     settings: runtimeStore,
     groupSettings: {},
-    messageCache: { set() {} },
+    messageCache: new MessageCache(),
     commandToggle: { isDisabled: () => false },
     activeTracker: { recordActivity() {}, getActiveUsers: () => [] },
     presenceManager: null,
@@ -68,13 +72,44 @@ function msg(text, fromMe = true, jid = '120363000000000000@g.us') {
 
   const rejectedSent = [];
   const rejectedSocket = socket(rejectedSent);
-  rejectedSocket.rejectStatusReactionOnce = true;
-  const rejectedResources = { ...resources, settings: makeStore({ mode: 'public', autoreactstatus: true, autoreactemojis: ['✅'] }) };
+  rejectedSocket.rejectStatusReaction = true;
+  const rejectionWarnings = [];
+  const rejectedResources = {
+    ...resources,
+    settings: makeStore({ mode: 'public', autoreactstatus: true, autoreactemojis: ['✅'] }),
+    logger: { info() {}, error() {}, debug() {}, warn(message) { rejectionWarnings.push(message); } },
+  };
   registerMessageHandler(rejectedSocket, rejectedResources.commands, rejectedResources);
-  rejectedSocket.ev.emit('messages.upsert', { type: 'notify', messages: [{ key: { remoteJid: 'status@broadcast', fromMe: false, id: 'status-rejected', participant: '254700000003@s.whatsapp.net' }, message: { imageMessage: {} }, messageTimestamp: Math.floor(Date.now() / 1000) }] });
-  await new Promise((resolve) => setImmediate(resolve));
-  assert.equal(rejectedSent.filter((entry) => entry.payload.react).length, 1, 'not-acceptable status reactions must not issue invalid recipient-list retries');
+  const rejectedStatus = (id, participant) => ({ type: 'notify', messages: [{ key: { remoteJid: 'status@broadcast', fromMe: false, id, participant }, message: { imageMessage: {} }, messageTimestamp: Math.floor(Date.now() / 1000) }] });
+  rejectedSocket.ev.emit('messages.upsert', rejectedStatus('status-rejected-1', '254700000003@s.whatsapp.net'));
+  rejectedSocket.ev.emit('messages.upsert', rejectedStatus('status-rejected-2', '254700000003@s.whatsapp.net'));
+  rejectedSocket.ev.emit('messages.upsert', rejectedStatus('status-rejected-3', '254700000004@s.whatsapp.net'));
+  await new Promise((resolve) => setTimeout(resolve, 50));
+  assert.equal(rejectedSent.filter((entry) => entry.payload.react).length, 3, 'each status may attempt one reaction without retrying');
+  assert.equal(rejectionWarnings.length, 2, 'repeated not-acceptable warnings must be suppressed per owner');
+  assert.match(rejectionWarnings[0], /254700000003/);
+  assert.match(rejectionWarnings[1], /254700000004/);
   assert.deepEqual(rejectedSent[0].options?.statusJidList, ['254700000003@s.whatsapp.net'], 'status rejection attempt must use only the status owner participant');
 
-  console.log('PASS: autoreactstatus mutations, viewonce scope/status, forwarding, and configured status reactions work.');
+  const originalOwnerNumber = config.ownerNumber;
+  config.ownerNumber = '254700000099';
+  const deleteSent = [];
+  const deleteSocket = socket(deleteSent);
+  const deleteResources = {
+    ...resources,
+    settings: makeStore({ mode: 'public', antidelete: true, antideleteDest: 'p' }),
+    messageCache: new MessageCache(),
+    logger: { info() {}, error() {}, debug() {}, warn() {} },
+  };
+  registerMessageHandler(deleteSocket, deleteResources.commands, deleteResources);
+  const deletedKey = { remoteJid: '120363000000000000@g.us', fromMe: false, id: 'deleted-text-1', participant: '254700000003@s.whatsapp.net' };
+  deleteSocket.ev.emit('messages.upsert', { type: 'notify', messages: [{ key: deletedKey, message: { conversation: 'secret text', messageTimestamp: Math.floor(Date.now() / 1000) } }] });
+  await new Promise((resolve) => setTimeout(resolve, 20));
+  deleteSocket.ev.emit('messages.update', [{ update: { message: { protocolMessage: { type: proto.Message.ProtocolMessage.Type.REVOKE, key: deletedKey } } } }]);
+  await new Promise((resolve) => setTimeout(resolve, 20));
+  config.ownerNumber = originalOwnerNumber;
+  assert.equal(deleteSent[0]?.jid, '254700000099@s.whatsapp.net', 'antidelete must target the configured owner inbox');
+  assert.match(deleteSent[0]?.payload?.text || '', /secret text/, 'antidelete must recover cached text');
+
+  console.log('PASS: autoreactstatus mutations, viewonce scope/status, antidelete recovery, forwarding, and configured status reactions work.');
 })().catch((error) => { console.error(error); process.exitCode = 1; });
