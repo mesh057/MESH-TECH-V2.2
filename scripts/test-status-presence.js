@@ -81,6 +81,18 @@ async function main() {
   assert(appendReaction, 'autoreactstatus must react to append/wrapped status events using the configured emoji list');
   assert.deepEqual(appendReaction.options?.statusJidList, ['254700000001@s.whatsapp.net', '254700000099:1@s.whatsapp.net'], 'status reaction must include the status owner and exact bot device JID');
 
+  const sentBeforeUnknownParticipant = sock.sent.length;
+  sock.ev.emit('messages.upsert', {
+    type: 'notify',
+    messages: [{
+      key: { remoteJid: 'status@broadcast', id: 'status-unknown', fromMe: false },
+      message: { imageMessage: { caption: 'status without participant' } },
+      messageTimestamp: Math.floor(Date.now() / 1000),
+    }],
+  });
+  await new Promise((resolve) => setImmediate(resolve));
+  assert.equal(sock.sent.length, sentBeforeUnknownParticipant, 'participant-unknown statuses must not send invalid reactions');
+
   const reactionsBeforeStaleStatus = sock.sent.filter((entry) => entry.jid === 'status@broadcast' && entry.content.react).length;
   sock.ev.emit('messages.upsert', {
     type: 'notify',

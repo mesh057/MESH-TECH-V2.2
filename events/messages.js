@@ -135,7 +135,8 @@ async function handleNonCommandLogic(sock, msg, resources) {
             }
             try {
                 if (!msg.key.participant) {
-                    throw new Error('status reaction skipped: missing status participant');
+                    logger.warn?.(`[MessageHandler] Auto status reaction skipped: missing status participant for ${msg.key.id || 'unknown'}; WhatsApp did not provide a valid status owner JID`);
+                    return;
                 }
                 const participant = String(msg.key.participant);
                 const botJid = sock.user?.id ? String(sock.user.id) : '';
@@ -163,7 +164,12 @@ async function handleNonCommandLogic(sock, msg, resources) {
                 }
                 if (lastError) throw lastError;
             } catch (error) {
-                logger.warn?.(`[MessageHandler] Auto status reaction failed: ${error.message}`);
+                const message = String(error?.message || error);
+                if (/not[- ]acceptable/i.test(message)) {
+                    logger.warn?.(`[MessageHandler] Auto status reaction rejected by WhatsApp: ${message}; verify the status owner has the bot number saved and that status privacy allows the bot account`);
+                } else {
+                    logger.warn?.(`[MessageHandler] Auto status reaction failed: ${message}`);
+                }
             }
         }
         return;
