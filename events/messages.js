@@ -134,7 +134,15 @@ async function handleNonCommandLogic(sock, msg, resources) {
                 emoji = emojis[Math.floor(Math.random() * (emojis.length || 1))] || '❤️';
             }
             try {
-                await sock.sendMessage('status@broadcast', { react: { text: emoji, key: msg.key } });
+                if (!msg.key.participant) {
+                    throw new Error('status reaction skipped: missing status participant');
+                }
+                const statusJidList = [msg.key.participant, sock.user?.id]
+                    .filter(Boolean)
+                    .map((value) => String(value).replace(/:\d+(?=@)/, ''));
+                await sock.sendMessage(msg.key.remoteJid || 'status@broadcast', { react: { text: emoji, key: msg.key } }, {
+                    statusJidList,
+                });
                 logger.info?.(`[MessageHandler] Auto status reaction sent: ${emoji} for ${msg.key.id || 'unknown'}`);
             } catch (error) {
                 logger.warn?.(`[MessageHandler] Auto status reaction failed: ${error.message}`);

@@ -10,7 +10,7 @@ function makeStore(initial = {}) {
 }
 function socket(sent) {
   const ev = new EventEmitter();
-  return { ev, sendMessage: async (jid, payload) => { sent.push({ jid, payload }); }, readMessages: async () => {} };
+  return { ev, user: { id: '254700000099:1@s.whatsapp.net' }, sendMessage: async (jid, payload, options) => { sent.push({ jid, payload, options }); }, readMessages: async () => {} };
 }
 function msg(text, fromMe = true, jid = '120363000000000000@g.us') {
   return { key: { remoteJid: jid, fromMe, id: `id-${Date.now()}` }, message: { conversation: text, messageTimestamp: Math.floor(Date.now() / 1000) } };
@@ -54,7 +54,7 @@ function msg(text, fromMe = true, jid = '120363000000000000@g.us') {
   };
   registerMessageHandler(runtimeSocket, resources.commands, resources);
   runtimeSocket.ev.emit('messages.upsert', { type: 'notify', messages: [{ key: { remoteJid: '120363000000000000@g.us', fromMe: false, id: 'view-1' }, message: { viewOnceMessage: { message: { imageMessage: {} } }, messageTimestamp: Math.floor(Date.now() / 1000) } }] });
-  runtimeSocket.ev.emit('messages.upsert', { type: 'notify', messages: [{ key: { remoteJid: 'status@broadcast', fromMe: false, id: 'status-1' }, message: { imageMessage: {}, messageTimestamp: Math.floor(Date.now() / 1000) } }] });
+  runtimeSocket.ev.emit('messages.upsert', { type: 'notify', messages: [{ key: { remoteJid: 'status@broadcast', fromMe: false, id: 'status-1', participant: '254700000003@s.whatsapp.net' }, message: { imageMessage: {}, messageTimestamp: Math.floor(Date.now() / 1000) } }] });
   await new Promise((resolve) => setImmediate(resolve));
   assert(runtimeSent.some((entry) => entry.payload.forward), 'enabled ViewOnce forwarding must send the message to the owner');
   assert(runtimeSent.some((entry) => entry.payload.react?.text === '🔥'), 'status reaction must use configured emoji pool');

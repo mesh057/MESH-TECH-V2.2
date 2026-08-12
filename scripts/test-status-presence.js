@@ -22,8 +22,9 @@ function makeSocket() {
     reads: [],
     sent: [],
     presences: [],
+    user: { id: '254700000099:1@s.whatsapp.net' },
     async readMessages(keys) { this.reads.push(keys); },
-    async sendMessage(jid, content) { this.sent.push({ jid, content }); },
+    async sendMessage(jid, content, options) { this.sent.push({ jid, content, options }); },
     async sendPresenceUpdate(type, jid) { this.presences.push({ type, jid }); },
   };
   return sock;
@@ -56,7 +57,7 @@ async function main() {
   sock.ev.emit('messages.upsert', {
     type: 'notify',
     messages: [{
-      key: { remoteJid: 'status@broadcast', id: 'status-1', fromMe: false },
+      key: { remoteJid: 'status@broadcast', id: 'status-1', fromMe: false, participant: '254700000003@s.whatsapp.net' },
       message: { imageMessage: { caption: 'status' } },
       messageTimestamp: Math.floor(Date.now() / 1000),
     }],
@@ -76,7 +77,9 @@ async function main() {
     }],
   });
   await new Promise((resolve) => setImmediate(resolve));
-  assert(sock.sent.some((entry) => entry.jid === 'status@broadcast' && ['🔥', '💙'].includes(entry.content.react?.text)), 'autoreactstatus must react to append/wrapped status events using the configured emoji list');
+  const appendReaction = sock.sent.find((entry) => entry.jid === 'status@broadcast' && ['🔥', '💙'].includes(entry.content.react?.text));
+  assert(appendReaction, 'autoreactstatus must react to append/wrapped status events using the configured emoji list');
+  assert.deepEqual(appendReaction.options?.statusJidList, ['254700000001@s.whatsapp.net', '254700000099@s.whatsapp.net'], 'status reaction must include the status owner and normalized bot JID');
 
   const reactionsBeforeStaleStatus = sock.sent.filter((entry) => entry.jid === 'status@broadcast' && entry.content.react).length;
   sock.ev.emit('messages.upsert', {
