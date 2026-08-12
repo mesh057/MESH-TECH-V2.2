@@ -47,7 +47,7 @@ async function githubApi(endpoint) {
     throw new Error('This Node version has no global fetch. Node 18+ is required for update checks.');
   }
   const res = await fetch(`https://api.github.com/repos/${GITHUB_OWNER}/${GITHUB_REPO}${endpoint}`, {
-    headers: { 'Accept': 'application/vnd.github+json', 'User-Agent': 'ISAAC-MD' },
+    headers: { 'Accept': 'application/vnd.github+json', 'User-Agent': 'MESH-TECH MD' },
   });
   if (!res.ok) {
     throw new Error(`GitHub API returned ${res.status}: ${await res.text()}`);

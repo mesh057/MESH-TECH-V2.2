@@ -30,7 +30,7 @@ module.exports = {
 
     try {
       const headRes = await axios.head(url, {
-        headers: { 'User-Agent': 'ISAAC-MD' },
+        headers: { 'User-Agent': 'MESH-TECH MD' },
         maxRedirects: 5,
       });
 

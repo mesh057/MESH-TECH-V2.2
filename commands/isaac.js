@@ -8,7 +8,7 @@ module.exports = {
     const ownerNumber = '254754574642'; // digits only, with country code, no +
 
     const caption =
-      `╭──〔 👑 ISAAC ASSISTANT 〕──╮\n` +
+      `╭──〔 👑 MESH-TECH ASSISTANT 〕──╮\n` +
       `👤 *Owner:* ${ownerName}\n` +
       `📞 *Number:* +${ownerNumber}\n` +
       `🔗 *Chat:* https://wa.me/${ownerNumber}\n` +

@@ -1,7 +1,7 @@
 module.exports = {
   name: 'take',
   aliases: ['steal'],
-  description: 'Retake/rewatermark a sticker, image, or short video as an ISAAC-MD sticker.',
+  description: 'Retake/rewatermark a sticker, image, or short video as an MESH-TECH MD sticker.',
   async execute(sock, msg, args) {
     const jid = msg.key.remoteJid;
     const { Sticker, StickerTypes } = require('wa-sticker-formatter');
@@ -67,7 +67,7 @@ module.exports = {
           }
           const sticker = new Sticker(fs.readFileSync(processedPath), {
             pack: pushname,
-            author: 'ISAAC-MD',
+            author: 'MESH-TECH MD',
             type: StickerTypes.DEFAULT,
             quality: q,
           });
@@ -97,7 +97,7 @@ module.exports = {
       } else if (isAnimatedSticker) {
         const sticker = new Sticker(buffer, {
           pack: pushname,
-          author: 'ISAAC-MD',
+          author: 'MESH-TECH MD',
           type: StickerTypes.FULL,
           quality: 70,
         });
@@ -133,7 +133,7 @@ module.exports = {
         const paddedBuffer = await padded.getBufferAsync(Jimp.MIME_PNG);
         const sticker = new Sticker(paddedBuffer, {
           pack: pushname,
-          author: 'ISAAC-MD',
+          author: 'MESH-TECH MD',
           type: StickerTypes.DEFAULT,
           categories: ['🤩', '🎉'],
           quality: 100,

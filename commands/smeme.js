@@ -54,8 +54,8 @@ module.exports = {
       const buffer = await image.getBufferAsync(Jimp.MIME_PNG);
 
       const sticker = new Sticker(buffer, {
-        pack: 'ISAAC-MD',
-        author: 'ISAAC-MD',
+        pack: 'MESH-TECH MD',
+        author: 'MESH-TECH MD',
         type: StickerTypes.FULL,
         quality: 70,
       });

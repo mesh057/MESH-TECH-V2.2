@@ -19,7 +19,7 @@ module.exports = {
     const caption = `
 Hello 👋 *${senderName},*
 
-╔═══〔 🔥 ISAAC TECH 🔥 〕═══╗
+╔═══〔 🔥 MESH-TECH 🔥 〕═══╗
 ║    The Ultimate WhatsApp Bot
 ╚═══════════════════════════╝
 
@@ -42,7 +42,7 @@ Hello 👋 *${senderName},*
 
 ━━━━━━━━━━━━━━━━━━━━━━
 🔥 Made on Earth by Humans!
-❤️ Powered by *ISAAC TECH*
+❤️ Powered by *MESH-TECH*
 ━━━━━━━━━━━━━━━━━━━━━━
 `.trim();
 

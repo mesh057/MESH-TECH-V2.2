@@ -16,7 +16,7 @@ module.exports = {
         {
           document: { url },
           mimetype: 'application/zip',
-          fileName: 'ISAAC-MD.zip',
+          fileName: 'MESH-TECH MD.zip',
           caption:
             `╔══════════════════════╗\n` +
             `║   📦  BOT SOURCE CODE  \n` +

@@ -35,7 +35,7 @@ module.exports = {
         contextInfo: {
           externalAdReply: {
             showAdAttribution: true,
-            title: 'ISAAC-MD',
+            title: 'MESH-TECH MD',
             body: 'https://chat.whatsapp.com/JPH5gho7uxfBMviXg7sNNs',
             thumbnail,
             sourceUrl: 'https://chat.whatsapp.com/JPH5gho7uxfBMviXg7sNNs',

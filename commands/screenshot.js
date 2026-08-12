@@ -12,7 +12,7 @@ module.exports = {
     }
 
     try {
-      const caption = 'Screenshot by ISAAC-MD';
+      const caption = 'Screenshot by MESH-TECH MD';
       const image = `https://image.thum.io/get/fullpage/${url}`;
       await sock.sendMessage(jid, { image: { url: image }, caption }, { quoted: msg });
     } catch (error) {

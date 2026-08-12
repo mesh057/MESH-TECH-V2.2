@@ -12,13 +12,13 @@ module.exports = {
       'BEGIN:VCARD\n' +
       'VERSION:3.0\n' +
       `FN:${ownerName}\n` +
-      `ORG:ISAAC BOT;\n` +
+      `ORG:MESH-TECH BOT;\n` +
       `TEL;type=CELL;type=VOICE;waid=${ownerNumber}:+${ownerNumber}\n` +
       'END:VCARD';
 
     const infoText = `
 ╭──〔 👑 OWNER INFO 〕──╮
-🤖 *Bot:* ISAAC-MD
+🤖 *Bot:* MESH-TECH MD
 👤 *Owner:* ${ownerName}
 📱 *Contact:* +${ownerNumber}
 ╰──────────────────╯`.trim();

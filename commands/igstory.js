@@ -46,7 +46,7 @@ module.exports = {
         const url = item?.download_url || item?.url;
         if (!url) continue;
 
-        const caption = i === 0 ? `📸 *@${username}* stories\n_via ISAAC-MD_` : undefined;
+        const caption = i === 0 ? `📸 *@${username}* stories\n_via MESH-TECH MD_` : undefined;
 
         if (item.type === 'video') {
           await sock.sendMessage(jid, { video: { url }, mimetype: 'video/mp4', caption, gifPlayback: false }, { quoted: msg });

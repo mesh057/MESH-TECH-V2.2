@@ -57,7 +57,7 @@ module.exports = {
         `📦 *Versions:*\n` +
         `Node.js: ${process.version}\n` +
         `Baileys: ${baileysVersion}\n` +
-        `ISAAC-MD: ${pkgVersion}`;
+        `MESH-TECH MD: ${pkgVersion}`;
       return sock.sendMessage(jid, { text }, { quoted: msg });
     }
 

@@ -49,7 +49,7 @@ module.exports = {
       const fileName = finalTitle.replace(/[\/\\:*?"<>|]/g, '').trim() + '.mp3';
 
       await sock.sendMessage(jid, { audio: { url: downloadUrl }, mimetype: 'audio/mpeg', fileName }, { quoted: msg });
-      await sock.sendMessage(jid, { document: { url: downloadUrl }, mimetype: 'audio/mpeg', caption: '*DOWNLOADED BY ISAAC-MD*', fileName }, { quoted: msg });
+      await sock.sendMessage(jid, { document: { url: downloadUrl }, mimetype: 'audio/mpeg', caption: '*DOWNLOADED BY MESH-TECH MD*', fileName }, { quoted: msg });
       await sock.sendMessage(jid, { text: `✅ Successfully downloaded! *${finalTitle}*`, edit: searching.key });
     } catch (err) {
       await sock.sendMessage(jid, { text: '❌ An error occurred. Try again.' }, { quoted: msg });

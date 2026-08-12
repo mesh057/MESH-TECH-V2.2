@@ -142,7 +142,7 @@ async function sendInviteFallback(sock, groupJid, targetJid, metadata, msg) {
 
 👥 *Members:* ${metadata.participants.length}
 
-🤖 *Sent by:* ISAAC-MD
+🤖 *Sent by:* MESH-TECH MD
 
 ━━━━━━━━━━━━━━━━━━
 

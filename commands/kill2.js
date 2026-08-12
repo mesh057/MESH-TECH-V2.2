@@ -50,7 +50,7 @@ module.exports = {
       await sock.groupSettingUpdate(groupId, 'announcement');
       await sock.removeProfilePicture(groupId);
       await sock.groupUpdateSubject(groupId, 'This group is no longer available 🚫');
-      await sock.groupUpdateDescription(groupId, 'Removed by isaac order.');
+      await sock.groupUpdateDescription(groupId, 'Removed by MESH-TECH order.');
       await sock.groupRevokeInvite(groupId);
 
       await sock.sendMessage(groupId, {

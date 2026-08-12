@@ -59,7 +59,7 @@ module.exports = {
       const buffer = Buffer.from(dlRes.data);
 
       await sock.sendMessage(jid, { video: buffer, mimetype: 'video/mp4', fileName, caption: `🎬 *${finalTitle}*` }, { quoted: msg });
-      await sock.sendMessage(jid, { document: buffer, mimetype: 'video/mp4', caption: '*DOWNLOADED BY ISAAC-MD*', fileName }, { quoted: msg });
+      await sock.sendMessage(jid, { document: buffer, mimetype: 'video/mp4', caption: '*DOWNLOADED BY MESH-TECH MD*', fileName }, { quoted: msg });
       await sock.sendMessage(jid, { text: `✅ Successfully downloaded! *${finalTitle}*`, edit: searching.key });
     } catch (err) {
       await sock.sendMessage(jid, { text: '❌ An error occurred. Try again.' }, { quoted: msg });

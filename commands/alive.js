@@ -10,7 +10,7 @@ module.exports = {
 
     const caption = `
 ╔══════════════════════╗
-      👾 *ISAAC-MD* 👾
+      👾 *MESH-TECH MD* 👾
 ╚══════════════════════╝
 
 😈 *I'M ALIVE MATE!* 😡

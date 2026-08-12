@@ -16,7 +16,7 @@ module.exports = {
       return await sock.sendMessage(
         chatId,
         {
-          text: "🎵 *ISAAC-MD AUDIO*\n\nExample:\n.audio Shape of You"
+          text: "🎵 *MESH-TECH MD AUDIO*\n\nExample:\n.audio Shape of You"
         },
         { quoted: msg }
       );
