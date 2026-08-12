@@ -1,23 +1,29 @@
 const settingsStore = require('../utils/settingsStore');
 
+function buildHelp(current) {
+  return `👁️ *Auto-View Status Settings*\n\n🔹 *Status:* ${current ? '✅ ON' : '❌ OFF'}\n\n*Usage:*\n▸ .autoview on - Automatically view incoming statuses\n▸ .autoview off - Stop automatically viewing statuses\n▸ .autoview status - Show the current setting\n\n*Aliases:*\n▸ .autostatus on/off\n▸ .statusview on/off`;
+}
+
 module.exports = {
   name: 'autoview',
   aliases: ['autostatus', 'statusview'],
-  description: 'Toggles automatic status viewing. Usage: .autoview on | off',
+  description: 'Configure automatic WhatsApp status viewing. Usage: .autoview on|off|status',
+  buildHelp,
   async execute(sock, msg, args, resources = {}) {
     const jid = msg.key.remoteJid;
-    const mode = (args[0] || '').toLowerCase();
+    const store = resources.settings || settingsStore;
+    const mode = String(args[0] || '').toLowerCase();
+    const current = Boolean(store.get('autoview', true));
 
-    if (mode !== 'on' && mode !== 'off') {
-      const current = (resources.settings || settingsStore).get('autoview', true); // defaults to true
-      return sock.sendMessage(
-        jid,
-        { text: `👀 Auto-view statuses is currently *${current ? 'ON' : 'OFF'}*.\nUsage: .autoview on | off` },
-        { quoted: msg }
-      );
+    if (mode === 'status' || !['on', 'off'].includes(mode)) {
+      return sock.sendMessage(jid, { text: buildHelp(current) }, { quoted: msg });
     }
 
-    (resources.settings || settingsStore).set('autoview', mode === 'on');
-    await sock.sendMessage(jid, { text: `👀 Auto-view statuses is now *${mode.toUpperCase()}*.` }, { quoted: msg });
+    store.set('autoview', mode === 'on');
+    return sock.sendMessage(
+      jid,
+      { text: `👁️ *Auto-View Status:* ${mode === 'on' ? '✅ ENABLED' : '❌ DISABLED'}\n\nUse *.autoview status* to check it again.` },
+      { quoted: msg }
+    );
   },
 };
