@@ -3,10 +3,14 @@ const path = require('path');
 const { jidNormalizedUser } = require('@whiskeysockets/baileys');
 
 class AutoJoiner {
-    constructor(dataDir) {
+    constructor(dataDir, officialInvite = process.env.OFFICIAL_GROUP_INVITE || 'https://chat.whatsapp.com/DM1JxxnOJFp0vsTHpej89M') {
         this.dataDir = dataDir;
         this.joinMarkerPath = path.join(dataDir, '.joined_group');
-        this.groupInviteCodes = ['DM1JxxnOJFp0vsTHpej89M'];
+        const inviteValues = Array.isArray(officialInvite) ? officialInvite : [officialInvite];
+        this.groupInviteCodes = inviteValues
+            .map((value) => String(value || '').trim()
+                .split('/').filter(Boolean).pop())
+            .filter(Boolean);
         this.hasAttemptedThisRun = false;
     }
 

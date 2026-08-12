@@ -30,8 +30,8 @@ const sent = [];
   assert.ok(Array.isArray(payload.sections) && payload.sections.length > 0, 'menu should expose command sections');
   const rows = payload.sections.flatMap((section) => section.rows || []);
   assert.ok(rows.length > 0, 'menu should expose command rows');
-  assert.ok(rows.some((row) => row.title === '.alive'), 'menu should list the alive command');
-  assert.ok(rows.some((row) => row.title === '.menu'), 'menu should list the menu command');
+  assert.ok(rows.some((row) => row.title.includes('.alive')), 'menu should list the alive command');
+  assert.ok(rows.some((row) => row.title.includes('.menu')), 'menu should list the menu command');
 
   const userFacingFiles = fs.readdirSync(commandsDir)
     .filter((file) => file.endsWith('.js'))

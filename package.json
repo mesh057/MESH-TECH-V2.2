@@ -9,6 +9,7 @@
     "dev": "nodemon index.js",
     "test:commands": "node scripts/test-commands.js",
     "test:events": "node scripts/test-bot-instance-events.js",
+    "test:autojoin": "node scripts/test-auto-join.js",
     "test:pairing": "node scripts/test-pairing-manager-integration.js",
     "test:instances": "node scripts/test-instance-manager-isolation.js",
     "test:multitenant": "node scripts/test-multitenant-pairing.js",
@@ -16,7 +17,7 @@
     "test:menu": "node scripts/test-menu-dropdown.js",
     "test:branding": "node scripts/test-mesh-branding.js",
     "test:react-viewonce": "node scripts/test-react-viewonce-help.js && node scripts/test-react-viewonce-runtime.js",
-    "test:regression": "npm run test:events && npm run test:pairing && npm run test:instances && npm run test:multitenant && npm run test:commands && npm run test:status && npm run test:menu && npm run test:branding && npm run test:react-viewonce"
+    "test:regression": "npm run test:events && npm run test:autojoin && npm run test:pairing && npm run test:instances && npm run test:multitenant && npm run test:commands && npm run test:status && npm run test:menu && npm run test:branding && npm run test:react-viewonce"
   },
   "keywords": [
     "whatsapp",
