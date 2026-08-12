@@ -23,9 +23,10 @@ module.exports = {
   description: "Shows the MESH-TECH settings command menu.",
   settingsCommands: SETTINGS_COMMANDS,
   buildSettingsMenu,
-  async execute(sock, msg) {
+  async execute(sock, msg, args, resources = {}) {
     const jid = msg.key.remoteJid;
     const prefix = String(config.prefix || '.');
+    if (resources.menuState?.set) resources.menuState.set(jid, 'settings');
     await sock.sendMessage(jid, { text: buildSettingsMenu(prefix) }, { quoted: msg });
   },
 };

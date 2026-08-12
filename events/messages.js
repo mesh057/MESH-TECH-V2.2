@@ -5,6 +5,7 @@ const config = require('../config/config');
 const fs = require('fs');
 const path = require('path');
 const { runWithContext } = require('../utils/context');
+const menuModule = require('../media/menu.js');
 
 function extractMessageText(message) {
   if (!message) return '';
@@ -49,6 +50,13 @@ function registerMessageHandler(sock, commands, resources) {
         if (mode === 'private' && !isMe && msg.key.remoteJid !== 'status@broadcast') continue;
 
         const text = extractMessageText(msg.message).trim();
+        if (text === '0' && resources.menuState?.get(senderJid) === 'settings') {
+            resources.menuState.delete(senderJid);
+            const timezone = config.timezone || 'Africa/Nairobi';
+            const mainMenu = menuModule.getMenu(resources.commands || commands, timezone, Number(global.activeUserCount || 0));
+            await sock.sendMessage(msg.key.remoteJid, { text: mainMenu }, { quoted: msg });
+            continue;
+        }
         if (!text || !text.startsWith(prefix)) {
             // Handle non-command logic like antidelete/antiedit/auto-react here
             await runWithContext(resources, async () => {
