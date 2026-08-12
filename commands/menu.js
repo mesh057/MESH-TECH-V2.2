@@ -9,24 +9,34 @@ function trimDescription(value) {
   return text.length > 72 ? `${text.slice(0, 69)}...` : text;
 }
 
+const CATEGORY_EMOJIS = {
+  SYSTEM: '🌐', OWNER: '👑', GROUP: '👥', DOWNLOAD: '⬇️', AI: '🤖',
+  GITHUB: '🐙', TOOLS: '🧰', TEXT: '✏️', UTILITY: '🔧', STATUS: '📊',
+  PHOTO: '📷', REACT: '🪅', GAME: '🎮', FUN: '🎲', ANIME: '🌸',
+  GENERAL: '✨', STALK: '🔍', MISC: '🧩', EDIT: '🎨',
+};
+
 function buildDropdown(commands) {
   const unique = menuModule.uniqueCommands(commands);
   const groups = menuModule.commandGroups(commands);
   const prefix = String(config.prefix || '.');
-  const sections = groups.map(([category, entries]) => ({
-    title: `${category} (${entries.length})`,
-    rows: entries.map((command) => ({
-      title: `${prefix}${String(command.name)}`.slice(0, 24),
-      rowId: `${prefix}${String(command.name)}`,
-      description: trimDescription(command.description),
-    })),
-  }));
+  const sections = groups.map(([category, entries]) => {
+    const emoji = CATEGORY_EMOJIS[category] || '⚡';
+    return {
+      title: `${emoji} ${category} MENU • ${entries.length}`.slice(0, 60),
+      rows: entries.map((command) => ({
+        title: `⟿ ${prefix}${String(command.name)}`.slice(0, 24),
+        rowId: `${prefix}${String(command.name)}`,
+        description: `${emoji} ${trimDescription(command.description)}`.slice(0, 72),
+      })),
+    };
+  });
 
   return {
-    text: `MESH-TECH • ${unique.length} COMMANDS LOADED`,
-    title: 'COMMAND DIRECTORY',
-    footer: `Select a command below • Prefix: ${prefix}`,
-    buttonText: `VIEW ${unique.length} COMMANDS`,
+    text: `📋 MESH-TECH • ${unique.length} COMMANDS LOADED`,
+    title: '╭━━━ 📋 COMMAND DIRECTORY ━━━╮',
+    footer: `⚡ Select a decorated command • Prefix: ${prefix}`,
+    buttonText: `📂 VIEW ${unique.length} COMMANDS`,
     sections,
   };
 }

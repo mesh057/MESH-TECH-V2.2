@@ -32,11 +32,15 @@ const commands = new Map([
   assert.equal(sent.length, 2);
   const { payload } = sent[0];
   assert.match(payload.text, /3 COMMANDS LOADED/);
-  assert.equal(payload.buttonText, 'VIEW 3 COMMANDS');
+  assert.equal(payload.buttonText, '📂 VIEW 3 COMMANDS');
+  assert.equal(payload.title, '╭━━━ 📋 COMMAND DIRECTORY ━━━╮');
+  assert.match(payload.footer, /decorated command/);
   assert.ok(Array.isArray(payload.sections));
   const rows = payload.sections.flatMap((section) => section.rows);
   assert.deepEqual(rows.map((row) => row.rowId).sort(), ['.autoview', '.menu', '.ping']);
-  assert.ok(rows.some((row) => row.title === '.autoview'));
+  assert.ok(rows.some((row) => row.title === '⟿ .autoview'));
+  assert.ok(payload.sections.some((section) => /📊 STATUS MENU/.test(section.title)));
+  assert.ok(rows.every((row) => row.title.startsWith('⟿ ')));
   assert.match(sent[1].payload.text, /\.menu/);
   assert.equal((sent[1].payload.text.match(/\u200e/g) || []).length, 0);
 
@@ -49,6 +53,7 @@ const commands = new Map([
   }, { key: { remoteJid: '254700000000@s.whatsapp.net' } }, [], { commands });
   assert.equal(productionShapeSent.length, 2);
   assert.match(productionShapeSent[0].payload.text, /3 COMMANDS LOADED/);
+  assert.equal(productionShapeSent[0].payload.buttonText, '📂 VIEW 3 COMMANDS');
   assert.equal(productionShapeSent[0].payload.sections.flatMap((section) => section.rows).length, 3);
   assert.match(productionShapeSent[1].payload.text, /\.menu/);
 
