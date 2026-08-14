@@ -795,7 +795,7 @@
                         <i class="fas fa-phone"></i> MANUAL
                     </button>
                     <button class="tab-btn" onclick="switchTab('qr', event)">
-                        <i class="fas fa-qrcode"></i> QR SCAN
+                        <i class="fas fa-qrcode"></i> PAIR WITH QR
                     </button>
                 </div>
 
@@ -850,57 +850,50 @@
                     </div>
                 </div>
 
-                <!-- QR Scanner Tab -->
+                <!-- QR Pairing Tab -->
                 <div id="qr" class="tab-content">
                     <div class="card">
                         <div class="card-title">
-                            <i class="fas fa-qrcode"></i> QR SCANNER
+                            <i class="fas fa-qrcode"></i> QR CODE PAIRING
                         </div>
-                        <div class="form-group">
-                            <label for="qrPhoneNumber">
-                                <i class="fas fa-mobile-alt"></i> PHONE NUMBER
-                            </label>
-                            <input 
-                                type="tel" 
-                                id="qrPhoneNumber" 
-                                placeholder="254746844168" 
-                                autocomplete="off"
-                            >
-                            <div class="phone-hint">
-                                >> AUTO-FILL FROM QR OR ENTER MANUALLY
+                        <form id="qrPairingForm">
+                            <div class="form-group">
+                                <label for="qrPhoneNumber">
+                                    <i class="fas fa-mobile-alt"></i> PHONE NUMBER
+                                </label>
+                                <input 
+                                    type="tel" 
+                                    id="qrPhoneNumber" 
+                                    placeholder="254746844168" 
+                                    required
+                                    autocomplete="off"
+                                >
+                                <div class="phone-hint">
+                                    >> INCLUDE COUNTRY CODE (e.g., 254746844168)
+                                </div>
                             </div>
-                        </div>
 
-                        <div class="qr-container">
-                            <video id="qrVideo" autoplay></video>
-                            <div id="qrPlaceholder" style="padding: 40px; color: var(--text-secondary);">
-                                <i class="fas fa-qrcode" style="font-size: 48px; margin-bottom: 15px; display: block; opacity: 0.5;"></i>
-                                <p style="font-size: 12px;">CLICK "START SCANNER" TO BEGIN</p>
+                            <div class="button-group">
+                                <button type="submit" id="qrSubmitBtn">
+                                    <span id="qrBtnText">
+                                        <i class="fas fa-qrcode"></i> GENERATE QR CODE
+                                    </span>
+                                </button>
                             </div>
-                        </div>
-
-                        <div class="qr-controls">
-                            <button type="button" id="startQrBtn" onclick="startQrScanner()">
-                                <i class="fas fa-camera"></i> START SCANNER
-                            </button>
-                            <button type="button" id="stopQrBtn" onclick="stopQrScanner()" style="display: none;">
-                                <i class="fas fa-stop"></i> STOP SCANNER
-                            </button>
-                        </div>
-
-                        <div class="button-group" style="margin-top: 20px;">
-                            <button type="button" id="qrSubmitBtn" onclick="submitQrPairing()">
-                                <i class="fas fa-key"></i> GENERATE CODE
-                            </button>
-                        </div>
+                        </form>
 
                         <div id="qrResultSection" class="result-section">
                             <div class="result-title" id="qrResultTitle"></div>
-                            <div id="qrPairingCodeDisplay"></div>
+                            <div id="qrDisplay" style="margin: 20px 0; background: white; padding: 15px; display: inline-block;"></div>
                             <div class="result-message" id="qrResultMessage"></div>
-                            <button class="copy-btn" id="qrCopyBtn" style="display: none;">
-                                <i class="fas fa-copy"></i> COPY CODE
-                            </button>
+                        </div>
+
+                        <div class="instructions">
+                            <strong><i class="fas fa-book"></i> [ QR INSTRUCTIONS ]</strong>
+                            >> OPEN WHATSAPP ON YOUR PHONE<br>
+                            >> NAVIGATE TO: SETTINGS → LINKED DEVICES → LINK A DEVICE<br>
+                            >> SCAN THE QR CODE SHOWN ABOVE<br>
+                            <strong style="margin-top: 10px; display: block;">⚠️ QR EXPIRES IN 60 SECONDS</strong>
                         </div>
                     </div>
                 </div>
@@ -989,6 +982,15 @@
         const activeBotsCount = document.getElementById('activeBotsCount');
         const totalBotsCount = document.getElementById('totalBotsCount');
 
+        const qrForm = document.getElementById('qrPairingForm');
+        const qrPhoneInput = document.getElementById('qrPhoneNumber');
+        const qrSubmitBtn = document.getElementById('qrSubmitBtn');
+        const qrBtnText = document.getElementById('qrBtnText');
+        const qrResultSection = document.getElementById('qrResultSection');
+        const qrResultTitle = document.getElementById('qrResultTitle');
+        const qrDisplay = document.getElementById('qrDisplay');
+        const qrResultMessage = document.getElementById('qrResultMessage');
+
         let currentCode = null;
         let currentPairingToken = null;
         let qrScanning = false;
@@ -1004,87 +1006,108 @@
             }
         }
 
-        // QR Scanner Functions
-        async function startQrScanner() {
-            try {
-                const video = document.getElementById('qrVideo');
-                const placeholder = document.getElementById('qrPlaceholder');
-                const startBtn = document.getElementById('startQrBtn');
-                const stopBtn = document.getElementById('stopQrBtn');
-
-                qrStream = await navigator.mediaDevices.getUserMedia({ 
-                    video: { facingMode: 'environment' } 
-                });
-                
-                video.srcObject = qrStream;
-                video.style.display = 'block';
-                placeholder.style.display = 'none';
-                startBtn.style.display = 'none';
-                stopBtn.style.display = 'inline-block';
-                qrScanning = true;
-
-                scanQrCode(video);
-            } catch (err) {
-                alert('CAMERA ACCESS DENIED. PLEASE ALLOW PERMISSIONS.');
-            }
-        }
-
-        function stopQrScanner() {
-            const video = document.getElementById('qrVideo');
-            const placeholder = document.getElementById('qrPlaceholder');
-            const startBtn = document.getElementById('startQrBtn');
-            const stopBtn = document.getElementById('stopQrBtn');
-
-            if (qrStream) {
-                qrStream.getTracks().forEach(track => track.stop());
-            }
-            
-            video.style.display = 'none';
-            placeholder.style.display = 'block';
-            startBtn.style.display = 'inline-block';
-            stopBtn.style.display = 'none';
-            qrScanning = false;
-        }
-
-        function scanQrCode(video) {
-            const canvas = document.createElement('canvas');
-            const ctx = canvas.getContext('2d');
-
-            function scan() {
-                if (!qrScanning) return;
-
-                canvas.width = video.videoWidth;
-                canvas.height = video.videoHeight;
-                ctx.drawImage(video, 0, 0);
-
-                const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
-                const code = jsQR(imageData.data, canvas.width, canvas.height);
-
-                if (code) {
-                    const phoneNumber = code.data.replace(/[^0-9]/g, '');
-                    if (phoneNumber.length >= 8) {
-                        document.getElementById('qrPhoneNumber').value = phoneNumber;
-                        stopQrScanner();
-                        showQrSuccess('PHONE NUMBER DETECTED FROM QR CODE!');
-                        return;
-                    }
-                }
-
-                requestAnimationFrame(scan);
-            }
-
-            scan();
-        }
-
-        function submitQrPairing() {
-            const phoneNumber = document.getElementById('qrPhoneNumber').value.trim();
+        // QR Pairing Logic
+        qrForm.addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const phoneNumber = qrPhoneInput.value.trim();
             if (!phoneNumber) {
-                showQrError('PLEASE ENTER OR SCAN A PHONE NUMBER');
+                showQrError('PLEASE ENTER YOUR PHONE NUMBER');
                 return;
             }
 
-            phoneInput.value = phoneNumber;
-            submitBtn.click();
+            qrSubmitBtn.disabled = true;
+            qrBtnText.innerHTML = '<span class="loading-spinner"></span>GENERATING QR...';
+
+            try {
+                const response = await fetch('/api/request-pairing', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ phoneNumber, useQr: true })
+                });
+
+                const data = await response.json();
+
+                if (data.success) {
+                    currentPairingToken = data.accessToken;
+                    showQrWaiting('GENERATING WHATSAPP QR CODE...');
+                    pollForQr(data.phoneNumber || phoneNumber, currentPairingToken);
+                } else {
+                    showQrError(data.error || 'FAILED TO REQUEST QR CODE');
+                    qrSubmitBtn.disabled = false;
+                    qrBtnText.innerHTML = '<i class="fas fa-qrcode"></i> GENERATE QR CODE';
+                }
+            } catch (err) {
+                showQrError('NETWORK ERROR: ' + err.message);
+                qrSubmitBtn.disabled = false;
+                qrBtnText.innerHTML = '<i class="fas fa-qrcode"></i> GENERATE QR CODE';
+            }
+        });
+
+        function pollForQr(phoneNumber, accessToken) {
+            let attempts = 0;
+            let qrDisplayed = false;
+            const maxAttempts = 120;
+
+            const interval = setInterval(async () => {
+                attempts++;
+                try {
+                    const response = await fetch(`/api/pairing-code?phoneNumber=${encodeURIComponent(phoneNumber)}&accessToken=${encodeURIComponent(accessToken)}`);
+                    const data = await response.json();
+
+                    if (data.success && data.qr && !qrDisplayed) {
+                        qrDisplayed = true;
+                        showQrCode(data.qr);
+                    }
+                    
+                    if (data.success && data.status === 'success' && data.sessionId) {
+                        clearInterval(interval);
+                        showSessionSuccess(data.sessionId);
+                        qrSubmitBtn.disabled = false;
+                        qrBtnText.innerHTML = '<i class="fas fa-qrcode"></i> GENERATE QR CODE';
+                    } else if (data.success === false) {
+                        clearInterval(interval);
+                        showQrError(data.error || 'PAIRING FAILED. PLEASE TRY AGAIN.');
+                        qrSubmitBtn.disabled = false;
+                        qrBtnText.innerHTML = '<i class="fas fa-qrcode"></i> GENERATE QR CODE';
+                    } else if (attempts >= maxAttempts) {
+                        clearInterval(interval);
+                        showQrError('QR CODE GENERATION TIMED OUT. PLEASE TRY AGAIN.');
+                        qrSubmitBtn.disabled = false;
+                        qrBtnText.innerHTML = '<i class="fas fa-qrcode"></i> GENERATE QR CODE';
+                    }
+                } catch (err) {
+                    if (attempts >= maxAttempts) {
+                        clearInterval(interval);
+                        showQrError('ERROR FETCHING QR CODE: ' + err.message);
+                        qrSubmitBtn.disabled = false;
+                        qrBtnText.innerHTML = '<i class="fas fa-qrcode"></i> GENERATE QR CODE';
+                    }
+                }
+            }, 1000);
+        }
+
+        function showQrCode(qr) {
+            qrResultSection.className = 'result-section show success';
+            qrResultTitle.textContent = '✓ QR CODE READY!';
+            qrDisplay.innerHTML = `<img src="https://api.qrserver.com/v1/create-qr-code/?size=250x250&data=${encodeURIComponent(qr)}" alt="WhatsApp QR Code" style="display: block; margin: 0 auto;">`;
+            qrResultMessage.innerHTML = `
+                <strong>SCAN THIS CODE WITH YOUR WHATSAPP.</strong><br>
+                THIS QR WILL EXPIRE SOON. SCAN IT QUICKLY!
+            `;
+        }
+
+        function showQrWaiting(message) {
+            qrResultSection.className = 'result-section show waiting';
+            qrResultTitle.textContent = '⟳ PLEASE WAIT...';
+            qrDisplay.innerHTML = '<div class="loading-spinner" style="margin: 20px auto; display: block;"></div>';
+            qrResultMessage.textContent = message;
+        }
+
+        function showQrError(message) {
+            qrResultSection.className = 'result-section show error';
+            qrResultTitle.textContent = '✗ ERROR';
+            qrDisplay.innerHTML = '';
+            qrResultMessage.textContent = message;
         }
 
         // Check bot status on page load

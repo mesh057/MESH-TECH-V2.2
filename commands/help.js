@@ -19,6 +19,8 @@ const descriptions = {
   "shutdown": "Shuts down the bot process.",
   "block": "Blocks a user from using the bot.",
   "unblock": "Unblocks a user.",
+  "pair": "Link a new account via pairing code.",
+  "pairqr": "Link a new account via QR code.",
   "session": "Get Base64 SESSION_ID for persistence.",
   "kick": "Removes a member from the group.",
   "add": "Adds a participant to the group.",
@@ -98,7 +100,7 @@ module.exports = {
     ).values()].sort((a, b) => a.name.localeCompare(b.name));
 
     const categories = {
-      "👑 OWNER": ["owner", "self", "public", "restart", "shutdown", "block", "unblock", "session", "addsudo", "delsudo", "clearsudos", "checksudo", "eval", "shell", "system"],
+      "👑 OWNER": ["owner", "self", "public", "restart", "shutdown", "block", "unblock", "session", "pair", "pairqr", "addsudo", "delsudo", "clearsudos", "checksudo", "eval", "shell", "system"],
       "👥 GROUP": ["kick", "add", "promote", "demote", "tagall", "hidetag", "open", "close", "groupinfo", "groupmembers", "groupstatus", "grouputils", "leavegroup", "mute", "unmute", "warn", "approve", "reject", "revoke"],
       "📥 DOWNLOAD": ["song", "video", "play", "ytmp3", "ytmp4", "tiktok", "insta", "fb", "gitclone", "img", "apk", "pindl", "socialdl", "download", "igstory"],
       "⚡ AI": ["ai", "ai2", "claude", "gptdm", "imagine", "vision", "vision2", "wormgpt", "lydia", "chatgpt", "grok", "mistral", "casperai", "bible", "quran"],

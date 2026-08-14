@@ -52,11 +52,12 @@ app.get('/api/status', (_req, res) => {
 app.post('/api/request-pairing', rateLimit, async (req, res) => {
   try {
     const phoneNumber = req.body?.phoneNumber;
+    const useQr = req.body?.useQr === true;
     if (!phoneNumber) {
       return res.status(400).json({ success: false, error: 'Phone number is required.' });
     }
 
-    const session = await pairingManager.startPairing(phoneNumber);
+    const session = await pairingManager.startPairing(phoneNumber, useQr);
     const normalized = pairingManager.normalizePhoneNumber(phoneNumber);
 
     res.json({
@@ -90,6 +91,7 @@ app.get('/api/pairing-code', (req, res) => {
     success: true,
     status: session.status,
     code: session.code,
+    qr: session.qr,
     phoneNumber: session.number,
     sessionId: session.status === 'success' ? session.sessionId : null,
   });

@@ -48,7 +48,7 @@ function makeSocketOptions(version, state) {
   };
 }
 
-async function startPairing(phoneNumber) {
+async function startPairing(phoneNumber, useQr = false) {
   const number = normalizePhoneNumber(phoneNumber);
   if (!/^\d{8,15}$/.test(number)) {
     throw new Error('Enter a valid phone number with country code.');
@@ -65,6 +65,8 @@ async function startPairing(phoneNumber) {
     tempAuthFolder,
     status: 'initializing',
     code: null,
+    qr: null,
+    useQr,
     sessionId: null,
     error: null,
     expiresAt: Date.now() + PAIRING_TIMEOUT_MS,
@@ -87,7 +89,7 @@ async function startPairing(phoneNumber) {
 
   try {
     const { version } = await fetchLatestBaileysVersion();
-    await createPairingSocket(session, version, true);
+    await createPairingSocket(session, version, !useQr);
     return session;
   } catch (err) {
     session.status = 'error';
@@ -106,6 +108,13 @@ async function createPairingSocket(session, version, requestCode) {
   session.saveCreds = saveCreds;
   sock.ev.on('creds.update', saveCreds);
   sock.ev.on('connection.update', (update) => {
+    const { qr } = update;
+    if (qr) {
+      session.qr = qr;
+      session.status = 'awaiting_qr';
+      logger.info(`[pairingManager] Generated QR code for ${session.number}`);
+    }
+
     handleConnectionUpdate(session, sock, version, update).catch((err) => {
       if (!session.cleaned && session.status !== 'success') {
         session.status = 'error';
