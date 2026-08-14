@@ -30,8 +30,8 @@ module.exports = {
       await sock.sendMessage(jid, { react: { text: '⏳', key: msg.key } });
 
       // Primary API: Siputzx Ummy
-      const res = await axios.get(`https://api.siputzx.my.id/api/d/savefrom?url=${encodeURIComponent(url)}`).catch(() => null);
-      const data = res?.data?.data?.[0]?.url;
+      const res = await axios.get(`https://api.siputzx.my.id/api/d/ummy?url=${encodeURIComponent(url)}`).catch(() => null);
+      const data = res?.data?.data?.audio;
 
       if (!data) {
         throw new Error('Downloader service is currently busy. Please try again later.');
