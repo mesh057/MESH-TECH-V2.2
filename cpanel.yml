@@ -1,0 +1,8 @@
+---
+deployment:
+  tasks:
+    - export DEPLOYPATH=/home3/tunupublsh/MESH-TECH-V2.2
+    - /bin/cp -R . $DEPLOYPATH
+    - cd $DEPLOYPATH
+    - chmod +x manage-bot.sh
+    - ./manage-bot.sh update
