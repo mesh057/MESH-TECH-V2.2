@@ -1,5 +1,6 @@
 'use strict';
 
+const fs = require('fs');
 const path = require('path');
 const express = require('express');
 const pairingManager = require('./utils/pairingManager');
@@ -56,8 +57,7 @@ app.post('/api/restore-session', rateLimit, async (req, res) => {
     }
 
     const authDir = instanceManager.authDirFor(phoneNumber);
-    const authInfoDir = path.join(authDir, 'auth_info');
-    fs.mkdirSync(authInfoDir, { recursive: true });
+    fs.mkdirSync(authDir, { recursive: true });
 
     let rawJson = sessionIdBase64;
     if (sessionIdBase64.includes(';;;')) {
@@ -74,10 +74,10 @@ app.post('/api/restore-session', rateLimit, async (req, res) => {
     try {
       const parsed = JSON.parse(rawJson);
       for (const [fileName, content] of Object.entries(parsed)) {
-        fs.writeFileSync(path.join(authInfoDir, fileName), typeof content === 'string' ? content : JSON.stringify(content, null, 2));
+        fs.writeFileSync(path.join(authDir, fileName), typeof content === 'string' ? content : JSON.stringify(content, null, 2));
       }
     } catch (e) {
-      fs.writeFileSync(path.join(authInfoDir, 'creds.json'), rawJson);
+      fs.writeFileSync(path.join(authDir, 'creds.json'), rawJson);
     }
 
     await instanceManager.startFromAuth(phoneNumber, authDir);
