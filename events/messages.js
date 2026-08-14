@@ -173,9 +173,10 @@ function registerMessageHandler(sock, commands, resources) {
         }
         if (msgTimestamp && msgTimestamp < CUTOFF_TIME && !isStatusEvent) continue;
 
-        // Cache every incoming message, including commands, before dispatch so
-        // a later revoke event can recover it for the owner inbox.
-        await cacheMessageForAntidelete(messageCache, msg, logger);
+        // Optimization: Only cache for antidelete if the feature is actually enabled
+        if (settings.get('antidelete', false)) {
+            await cacheMessageForAntidelete(messageCache, msg, logger);
+        }
 
         const senderJid = msg.key.participant || msg.key.remoteJid;
         const isMe = msg.key.fromMe;
@@ -320,7 +321,8 @@ async function handleNonCommandLogic(sock, msg, resources) {
     };
 
     if (presenceManager) {
-        await presenceManager.sendHumanPresence(jid);
+        // Optimization: Non-blocking presence updates to prevent message handler lag in busy groups
+        presenceManager.sendHumanPresence(jid).catch(() => {});
     }
 
     // Status automation is intentionally scoped to this BotInstance's settings.
