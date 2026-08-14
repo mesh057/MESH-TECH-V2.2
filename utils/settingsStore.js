@@ -70,7 +70,10 @@ class SettingsStore {
             'autorecording': 'AUTO_RECORDING',
             'antilink': 'ANTI_LINK',
             'anticall': 'ANTI_CALL',
-            'welcome': 'WELCOME'
+            'welcome': 'WELCOME',
+            'autoreact': 'AUTO_REACT',
+            'autoread': 'READ_MESSAGE',
+            'antiword': 'ANTI_BAD'
         };
 
         const envKey = envMap[key];

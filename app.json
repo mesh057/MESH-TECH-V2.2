@@ -135,6 +135,21 @@
       "description": "Set to 'true' to automatically reject WhatsApp calls.",
       "value": "false",
       "required": false
+    },
+    "AUTO_REACT": {
+      "description": "Set to 'true' to automatically react to every message.",
+      "value": "false",
+      "required": false
+    },
+    "READ_MESSAGE": {
+      "description": "Set to 'true' to automatically mark all messages as read.",
+      "value": "false",
+      "required": false
+    },
+    "ANTI_BAD": {
+      "description": "Set to 'true' to automatically delete messages with bad words.",
+      "value": "false",
+      "required": false
     }
   }
 }
