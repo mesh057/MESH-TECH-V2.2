@@ -41,6 +41,52 @@ app.disable('x-powered-by');
 app.use(express.json({ limit: '32kb' }));
 app.use(express.static(publicDir, { index: 'pairing.html' }));
 
+app.get('/dashboard', (_req, res) => {
+  res.sendFile(path.join(publicDir, 'dashboard.html'));
+});
+
+app.post('/api/restore-session', rateLimit, async (req, res) => {
+  try {
+    const data = req.body;
+    const phoneNumber = String(data.phoneNumber || '').replace(/\D/g, '');
+    const sessionIdBase64 = String(data.sessionId || '').trim();
+
+    if (!phoneNumber || !sessionIdBase64) {
+      return res.status(400).json({ success: false, error: 'Phone number and session ID are required.' });
+    }
+
+    const authDir = instanceManager.authDirFor(phoneNumber);
+    const authInfoDir = path.join(authDir, 'auth_info');
+    fs.mkdirSync(authInfoDir, { recursive: true });
+
+    let rawJson = sessionIdBase64;
+    if (sessionIdBase64.includes(';;;')) {
+      const parts = sessionIdBase64.split(';;;');
+      rawJson = Buffer.from(parts[1] || parts[0], 'base64').toString('utf8');
+    } else if (!sessionIdBase64.startsWith('{')) {
+      try {
+        rawJson = Buffer.from(sessionIdBase64, 'base64').toString('utf8');
+      } catch (e) {
+        rawJson = sessionIdBase64;
+      }
+    }
+
+    try {
+      const parsed = JSON.parse(rawJson);
+      for (const [fileName, content] of Object.entries(parsed)) {
+        fs.writeFileSync(path.join(authInfoDir, fileName), typeof content === 'string' ? content : JSON.stringify(content, null, 2));
+      }
+    } catch (e) {
+      fs.writeFileSync(path.join(authInfoDir, 'creds.json'), rawJson);
+    }
+
+    await instanceManager.startFromAuth(phoneNumber, authDir);
+    res.json({ success: true, message: 'Session restored successfully!', phoneNumber });
+  } catch (error) {
+    res.status(400).json({ success: false, error: error.message });
+  }
+});
+
 app.get('/api/status', (_req, res) => {
   res.json({
     botStatus: botConnectionState,

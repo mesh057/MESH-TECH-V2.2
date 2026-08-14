@@ -1,0 +1,368 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>MESH-TECH BOT CLOUD - V2.2 Deployment</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        :root {
+            --primary: #00ff66;
+            --secondary: #00cc55;
+            --dark-bg: #0b0f19;
+            --card-bg: #131b2e;
+            --card-border: #1e293b;
+            --text-primary: #ffffff;
+            --text-secondary: #94a3b8;
+            --accent: #3b82f6;
+            --error: #ef4444;
+            --success: #22c55e;
+        }
+
+        body {
+            font-family: 'Inter', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+            background: var(--dark-bg);
+            color: var(--text-primary);
+            min-height: 100vh;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            padding: 20px;
+        }
+
+        .container {
+            width: 100%;
+            max-width: 520px;
+            background: var(--card-bg);
+            border: 1px solid var(--card-border);
+            border-radius: 16px;
+            box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.5), 0 10px 10px -5px rgba(0, 0, 0, 0.4);
+            overflow: hidden;
+            animation: fadeIn 0.5s ease-out;
+        }
+
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(20px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        .header {
+            padding: 24px;
+            border-bottom: 1px solid var(--card-border);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            background: rgba(19, 27, 46, 0.7);
+        }
+
+        .brand {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+
+        .brand-icon {
+            width: 42px;
+            height: 42px;
+            background: linear-gradient(135deg, var(--primary), var(--accent));
+            border-radius: 10px;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            font-size: 20px;
+            color: #000;
+            font-weight: bold;
+            box-shadow: 0 0 15px rgba(0, 255, 102, 0.3);
+        }
+
+        .brand-title h2 {
+            font-size: 18px;
+            font-weight: 700;
+            letter-spacing: 0.5px;
+        }
+
+        .brand-title p {
+            font-size: 12px;
+            color: var(--text-secondary);
+        }
+
+        .user-badge {
+            background: rgba(59, 130, 246, 0.1);
+            color: var(--accent);
+            border: 1px solid rgba(59, 130, 246, 0.3);
+            padding: 6px 12px;
+            border-radius: 20px;
+            font-size: 12px;
+            font-weight: 600;
+        }
+
+        .content {
+            padding: 24px;
+            display: flex;
+            flex-direction: column;
+            gap: 20px;
+        }
+
+        .card-banner {
+            background: linear-gradient(135deg, rgba(30, 41, 59, 0.7), rgba(15, 23, 42, 0.9));
+            border: 1px solid var(--card-border);
+            border-radius: 12px;
+            padding: 16px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .card-banner-info h3 {
+            font-size: 14px;
+            font-weight: 600;
+            margin-bottom: 4px;
+        }
+
+        .card-banner-info p {
+            font-size: 12px;
+            color: var(--text-secondary);
+        }
+
+        .btn-outline {
+            background: transparent;
+            border: 1px solid var(--primary);
+            color: var(--primary);
+            padding: 8px 14px;
+            border-radius: 8px;
+            font-size: 12px;
+            font-weight: 600;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            transition: all 0.2s;
+            text-decoration: none;
+        }
+
+        .btn-outline:hover {
+            background: rgba(0, 255, 102, 0.1);
+            box-shadow: 0 0 10px rgba(0, 255, 102, 0.2);
+        }
+
+        .section-title {
+            font-size: 13px;
+            font-weight: 600;
+            color: var(--text-secondary);
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            margin-bottom: 8px;
+        }
+
+        .section-title span.required {
+            color: var(--error);
+        }
+
+        .form-group {
+            display: flex;
+            flex-direction: column;
+            gap: 6px;
+        }
+
+        label {
+            font-size: 13px;
+            font-weight: 500;
+            color: var(--text-primary);
+        }
+
+        input, textarea, select {
+            width: 100%;
+            background: #090d16;
+            border: 1px solid var(--card-border);
+            border-radius: 8px;
+            padding: 12px 14px;
+            color: var(--text-primary);
+            font-size: 14px;
+            font-family: inherit;
+            transition: all 0.2s;
+        }
+
+        input:focus, textarea:focus, select:focus {
+            outline: none;
+            border-color: var(--primary);
+            box-shadow: 0 0 0 2px rgba(0, 255, 102, 0.2);
+        }
+
+        textarea {
+            resize: vertical;
+            min-height: 90px;
+            font-family: monospace;
+            font-size: 12px;
+        }
+
+        .help-text {
+            font-size: 11px;
+            color: var(--text-secondary);
+        }
+
+        .btn-primary {
+            background: linear-gradient(135deg, var(--primary), var(--secondary));
+            color: #000;
+            border: none;
+            border-radius: 8px;
+            padding: 14px;
+            font-size: 14px;
+            font-weight: 700;
+            cursor: pointer;
+            transition: all 0.2s;
+            box-shadow: 0 4px 12px rgba(0, 255, 102, 0.3);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            gap: 8px;
+            margin-top: 10px;
+        }
+
+        .btn-primary:hover {
+            transform: translateY(-1px);
+            box-shadow: 0 6px 16px rgba(0, 255, 102, 0.4);
+        }
+
+        .status-box {
+            margin-top: 15px;
+            padding: 12px;
+            border-radius: 8px;
+            font-size: 13px;
+            display: none;
+        }
+
+        .status-box.success {
+            background: rgba(34, 197, 94, 0.1);
+            border: 1px solid rgba(34, 197, 94, 0.3);
+            color: var(--success);
+            display: block;
+        }
+
+        .status-box.error {
+            background: rgba(239, 68, 68, 0.1);
+            border: 1px solid rgba(239, 68, 68, 0.3);
+            color: var(--error);
+            display: block;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <div class="brand">
+                <div class="brand-icon">MT</div>
+                <div class="brand-title">
+                    <h2>MESH-TECH CLOUD</h2>
+                    <p>WhatsApp V2.2 Instance</p>
+                </div>
+            </div>
+            <div class="user-badge" id="botStatusBadge">⚡ READY</div>
+        </div>
+
+        <div class="content">
+            <div class="card-banner">
+                <div class="card-banner-info">
+                    <h3>Need a Session ID?</h3>
+                    <p>Generate session string via QR or Pairing Code</p>
+                </div>
+                <a href="/pairing.html" class="btn-outline">
+                    <i class="fa-solid fa-qrcode"></i> Pairing Tool
+                </a>
+            </div>
+
+            <form id="deployForm" onsubmit="handleDeploy(event)">
+                <div class="section-title">
+                    <i class="fa-solid fa-sliders"></i> Required Configuration <span class="required">*</span>
+                </div>
+
+                <div class="form-group" style="margin-bottom: 16px;">
+                    <label>WHATSAPP NUMBER <span class="required">*</span></label>
+                    <input type="text" id="phoneNumber" placeholder="e.g., 254746844168" required>
+                    <span class="help-text">Enter number with country code without + or spaces.</span>
+                </div>
+
+                <div class="form-group" style="margin-bottom: 16px;">
+                    <label>SESSION ID <span class="required">*</span></label>
+                    <textarea id="sessionId" placeholder="Paste your Base64 session string here (e.g. MESH-TECH;;;...)" required></textarea>
+                    <span class="help-text">Paste the string obtained from the .session command.</span>
+                </div>
+
+                <div class="form-group" style="margin-bottom: 16px;">
+                    <label>DEVICE MODE</label>
+                    <select id="deviceMode">
+                        <option value="Android">Android (Full features with buttons)</option>
+                        <option value="iPhone">iPhone (Plain text compatible)</option>
+                    </select>
+                </div>
+
+                <div class="form-group" style="margin-bottom: 16px;">
+                    <label>OWNER NUMBER <span class="required">*</span></label>
+                    <input type="text" id="ownerNumber" placeholder="254746844168" value="254746844168" required>
+                    <span class="help-text">Your personal WhatsApp number for admin commands.</span>
+                </div>
+
+                <button type="submit" class="btn-primary" id="submitBtn">
+                    <i class="fa-solid fa-rocket"></i> Deploy & Connect Bot
+                </button>
+
+                <div id="statusBox" class="status-box"></div>
+            </form>
+        </div>
+    </div>
+
+    <script>
+        async function handleDeploy(event) {
+            event.preventDefault();
+            const btn = document.getElementById('submitBtn');
+            const statusBox = document.getElementById('statusBox');
+            
+            const phoneNumber = document.getElementById('phoneNumber').value.trim();
+            const sessionId = document.getElementById('sessionId').value.trim();
+            const ownerNumber = document.getElementById('ownerNumber').value.trim();
+
+            if (!phoneNumber || !sessionId) {
+                statusBox.className = 'status-box error';
+                statusBox.textContent = '❌ Phone Number and Session ID are required.';
+                return;
+            }
+
+            btn.disabled = true;
+            btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Deploying Session...';
+            statusBox.className = 'status-box';
+            statusBox.style.display = 'none';
+
+            try {
+                const res = await fetch('/api/restore-session', {
+                    method: 'POST',
+                    headers: { 'content-type': 'application/json' },
+                    body: JSON.stringify({ phoneNumber, sessionId, ownerNumber })
+                });
+                const data = await res.json();
+
+                if (data.success) {
+                    statusBox.className = 'status-box success';
+                    statusBox.textContent = '✅ Session successfully restored and bot is connecting!';
+                    document.getElementById('botStatusBadge').textContent = '🟢 CONNECTED';
+                } else {
+                    throw new Error(data.error || 'Failed to restore session.');
+                }
+            } catch (err) {
+                statusBox.className = 'status-box error';
+                statusBox.textContent = '❌ Error: ' + err.message;
+            } finally {
+                btn.disabled = false;
+                btn.innerHTML = '<i class="fa-solid fa-rocket"></i> Deploy & Connect Bot';
+            }
+        }
+    </script>
+</body>
+</html>
