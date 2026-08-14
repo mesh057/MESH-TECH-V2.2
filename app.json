@@ -80,6 +80,61 @@
       "description": "WhatsApp group invite link for your official support group (e.g. https://chat.whatsapp.com/XXXXXX). Used by the .join command.",
       "value": "",
       "required": false
+    },
+    "ANTI_DELETE": {
+      "description": "Set to 'true' to show deleted messages.",
+      "value": "true",
+      "required": false
+    },
+    "ALWAYS_ONLINE": {
+      "description": "Set to 'true' to stay online 24/7.",
+      "value": "false",
+      "required": false
+    },
+    "AUTO_STATUS_SEEN": {
+      "description": "Set to 'true' for automatic status viewing.",
+      "value": "true",
+      "required": false
+    },
+    "AUTO_STATUS_REACT": {
+      "description": "Set to 'true' for automatic reaction on status.",
+      "value": "true",
+      "required": false
+    },
+    "AUTO_STATUS_REPLY": {
+      "description": "Set to 'true' for auto reply on status seen.",
+      "value": "false",
+      "required": false
+    },
+    "AUTO_STATUS_MSG": {
+      "description": "Custom message for status reply.",
+      "value": "*SEEN YOUR STATUS BY MESH-TECH-MD 🖤*",
+      "required": false
+    },
+    "ANTI_LINK": {
+      "description": "Set to 'true' to automatically remove group links.",
+      "value": "false",
+      "required": false
+    },
+    "AUTO_TYPING": {
+      "description": "Set to 'true' for automatic typing simulation.",
+      "value": "false",
+      "required": false
+    },
+    "AUTO_RECORDING": {
+      "description": "Set to 'true' for automatic recording simulation.",
+      "value": "false",
+      "required": false
+    },
+    "WELCOME": {
+      "description": "Set to 'true' for welcome/goodbye messages in groups.",
+      "value": "false",
+      "required": false
+    },
+    "ANTI_CALL": {
+      "description": "Set to 'true' to automatically reject WhatsApp calls.",
+      "value": "false",
+      "required": false
     }
   }
 }

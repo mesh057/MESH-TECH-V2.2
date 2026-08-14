@@ -54,7 +54,34 @@ class SettingsStore {
     }
 
     get(key, fallback = undefined) {
-        return key in this.state ? this.state[key] : fallback;
+        if (key in this.state) return this.state[key];
+        
+        // Bridge environment variables for Railway/Heroku users
+        const envMap = {
+            'autoview': 'AUTO_STATUS_SEEN',
+            'autoreactstatus': 'AUTO_STATUS_REACT',
+            'autolike': 'AUTO_STATUS_REACT',
+            'autoreplystatus': 'AUTO_STATUS_REPLY',
+            'statusreplytext': 'AUTO_STATUS_MSG',
+            'antidelete': 'ANTI_DELETE',
+            'wapresence': 'ALWAYS_ONLINE',
+            'fakepresence': 'AUTO_TYPING', // Note: AUTO_TYPING/AUTO_RECORDING logic is handled in PresenceManager
+            'autotyping': 'AUTO_TYPING',
+            'autorecording': 'AUTO_RECORDING',
+            'antilink': 'ANTI_LINK',
+            'anticall': 'ANTI_CALL',
+            'welcome': 'WELCOME'
+        };
+
+        const envKey = envMap[key];
+        if (envKey && process.env[envKey] !== undefined) {
+            const val = process.env[envKey];
+            if (val === 'true') return true;
+            if (val === 'false') return false;
+            return val;
+        }
+
+        return fallback;
     }
 
     set(key, value) {
