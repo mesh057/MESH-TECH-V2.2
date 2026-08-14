@@ -303,24 +303,29 @@ async function handleNonCommandLogic(sock, msg, resources) {
     // Status automation is intentionally scoped to this BotInstance's settings.
     if (isStatus) {
         logger.info?.(`[MessageHandler] Status event received: type=${msg.messageTimestamp ? 'notify' : 'append'} id=${msg.key.id || 'unknown'} participant=${msg.key.participant || 'unknown'}`);
-        if (!msg.key.fromMe && settings.get('autoview', true)) {
+        
+        const isFromMe = msg.key.fromMe;
+        const participant = msg.key.participant || msg.participant;
+        const botJid = jidNormalizedUser(sock.user.id);
+
+        if (!isFromMe && settings.get('autoview', true)) {
             await sock.readMessages([msg.key]).catch(() => {});
         }
-        if (!msg.key.fromMe && (settings.get('autolike', false) || settings.get('autoreactstatus', false))) {
+
+        if (!isFromMe && (settings.get('autolike', false) || settings.get('autoreactstatus', false))) {
             let emoji = '❤️';
             if (settings.get('autoreactstatus', false)) {
-                const configured = settings.get('autoreactemojis', ['💛', '❤️', '💜', '🤍', '💙']);
+                const configured = settings.get('autoreactemojis', ['💛', '❤️', '💜', '🤍', '💙', '🔥', '✨', '⚡', '🌈', '💖']);
                 const emojis = (Array.isArray(configured) ? configured : String(configured).split(','))
                     .map((value) => String(value).trim()).filter(Boolean);
                 emoji = emojis[Math.floor(Math.random() * (emojis.length || 1))] || '❤️';
             }
             try {
-                if (!msg.key.participant) {
-                    logger.warn?.(`[MessageHandler] Auto status reaction skipped: missing status participant for ${msg.key.id || 'unknown'}; WhatsApp did not provide a valid status owner JID`);
+                if (!participant) {
+                    logger.warn?.(`[MessageHandler] Auto status reaction skipped: missing status participant for ${msg.key.id || 'unknown'}`);
                     return;
                 }
-                const participant = String(msg.key.participant);
-                const statusJidList = [participant];
+                const statusJidList = [jidNormalizedUser(participant), botJid];
                 await sock.sendMessage('status@broadcast', { react: { text: emoji, key: msg.key } }, {
                     statusJidList,
                 });
