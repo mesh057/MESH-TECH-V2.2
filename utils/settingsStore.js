@@ -56,7 +56,8 @@ class SettingsStore {
     get(key, fallback = undefined) {
         if (key in this.state) return this.state[key];
         
-        // Bridge environment variables for Railway/Heroku users
+        // Bridge environment variables for Railway/Heroku users ONLY if no user setting exists.
+        // Once a command is used (e.g., .alwaysonline off), it is saved in this.state and the env var is ignored.
         const envMap = {
             'autoview': 'AUTO_STATUS_SEEN',
             'autoreactstatus': 'AUTO_STATUS_REACT',
@@ -65,7 +66,7 @@ class SettingsStore {
             'statusreplytext': 'AUTO_STATUS_MSG',
             'antidelete': 'ANTI_DELETE',
             'wapresence': 'ALWAYS_ONLINE',
-            'fakepresence': 'AUTO_TYPING', // Note: AUTO_TYPING/AUTO_RECORDING logic is handled in PresenceManager
+            'fakepresence': 'AUTO_TYPING',
             'autotyping': 'AUTO_TYPING',
             'autorecording': 'AUTO_RECORDING',
             'antilink': 'ANTI_LINK',
