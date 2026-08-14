@@ -38,12 +38,12 @@ module.exports = {
 
     // 2. Define Categories
     const categories = {
-      "👑 OWNER": ["owner", "self", "public", "restart", "shutdown", "block", "unblock", "addsudo", "delsudo", "clearsudos", "checksudo", "eval", "shell"],
+      "👑 OWNER": ["owner", "self", "public", "restart", "shutdown", "block", "unblock", "addsudo", "delsudo", "clearsudos", "checksudo", "eval", "shell", "system"],
       "👥 GROUP": ["kick", "add", "promote", "demote", "tagall", "hidetag", "open", "close", "groupinfo", "groupmembers", "groupstatus", "grouputils", "leavegroup", "mute", "unmute", "warn", "approve", "reject", "revoke"],
       "📥 DOWNLOAD": ["song", "video", "play", "ytmp3", "ytmp4", "tiktok", "insta", "fb", "gitclone", "img", "apk", "pindl", "socialdl", "download", "igstory"],
-      "⚡ AI": ["ai", "ai2", "claude", "gptdm", "imagine", "vision", "vision2", "wormgpt", "lydia", "chatgpt"],
+      "⚡ AI": ["ai", "ai2", "claude", "gptdm", "imagine", "vision", "vision2", "wormgpt", "lydia", "chatgpt", "grok", "mistral", "casperai", "bible", "quran"],
       "🪼 AUTO": ["anticall", "antidelete", "antiedit", "antilinkall", "antitag", "autobio", "autolike", "autoreact", "autoreactstatus", "autoread", "autorecording", "autoreply", "autotyping", "autoview", "wapresence", "alwaysonline"],
-      "🎨 TOOLS": ["calc", "captions", "carbon", "cartoon", "compile", "define", "enc", "fancy", "fetch", "getcmd", "getfile", "getpfp", "ison", "jsj", "lyrics", "ocr", "qr", "quote", "remini", "removebg", "runtime", "sticker", "toimg", "tovideo", "trt", "tts", "upload", "uptime", "url", "vcf", "viewonce", "vv", "zip"],
+      "🎨 TOOLS": ["calc", "captions", "carbon", "cartoon", "compile", "define", "enc", "fancy", "fetch", "getcmd", "getfile", "getpfp", "ison", "jsj", "lyrics", "ocr", "qr", "quote", "remini", "removebg", "runtime", "sticker", "toimg", "tovideo", "trt", "tts", "upload", "uptime", "url", "vcf", "viewonce", "vv", "zip", "fire", "logo", "glass", "balloon", "glow", "enlarger", "colorize", "tempmail", "shorten", "ss"],
       "🎮 FUN": ["animal", "cat", "dog", "eightball", "fact", "game", "games", "hacker", "harami", "heart", "joke", "kill", "love", "meme", "mix", "nice", "roast", "tictactoe", "trivia", "truthordare"],
       "🎌 ANIME": ["akira", "akiyama", "anime", "asuna", "ayuzawa", "baka", "bite", "blush", "boruto", "bts", "chiho", "chitoge", "cosplay", "cry", "cuddle", "deidara", "doraemon", "elaina", "emilia", "erza", "exo", "hestia", "hinata", "hug", "husbu", "itachi", "itori", "jibril", "kiss", "kitsune", "kurumi", "luffy", "megumin", "mikasa", "neko", "nezuko", "pat", "rem", "rose", "shinobu", "slap", "smile", "waifu", "yumeko", "zerotwo"],
       "⚽ SPORTS": ["bundesliga", "epl", "euro", "fifa", "football", "laliga", "ligue1", "livescore", "seriea", "standings"]

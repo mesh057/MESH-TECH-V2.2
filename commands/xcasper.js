@@ -8,9 +8,11 @@ module.exports = {
     aliases: [
         'tiktok', 'tiktok2', 'tiktok3', 'yt', 'ytmp3', 'ytmp4', 'fb', 'ig', 'insta',
         'google', 'spotify', 'lyrics', 'grok', 'mistral', 'casperai', 'bible', 'quran',
-        'removebg', 'enlarger', 'colorize', 'ocr', 'tempmail', 'quote', 'joke', 'shorten', 'qr', 'ss', 'screenshot'
+        'removebg', 'enlarger', 'colorize', 'ocr', 'tempmail', 'quote', 'joke', 'shorten', 'qr', 'ss', 'screenshot',
+        'fire', 'logo', 'glass', 'balloon', 'glow'
     ],
     description: 'X-Casper API Integration for media, AI, search, and tools.',
+    category: 'TOOLS',
 
     async execute(sock, msg, args, resources) {
         const jid = msg.key.remoteJid;
@@ -177,6 +179,36 @@ module.exports = {
                 case 'screenshot': {
                     if (!query) return reply('❌ Provide URL!');
                     await sock.sendMessage(jid, { image: { url: `${BASE_URL}/tools/screenshot?url=${encodeURIComponent(query)}` }, caption: `📸 *Screenshot*` }, { quoted: msg });
+                    break;
+                }
+
+                case 'fire': {
+                    if (!query) return reply('❌ Provide text!');
+                    await sock.sendMessage(jid, { image: { url: `${BASE_URL}/fire-text?text=${encodeURIComponent(query)}` }, caption: '🔥 *Fire Text*' }, { quoted: msg });
+                    break;
+                }
+
+                case 'logo': {
+                    if (!query) return reply('❌ Provide text!');
+                    await sock.sendMessage(jid, { image: { url: `${BASE_URL}/game-logo?text=${encodeURIComponent(query)}` }, caption: '🎮 *Gaming Logo*' }, { quoted: msg });
+                    break;
+                }
+
+                case 'glass': {
+                    if (!query) return reply('❌ Provide text!');
+                    await sock.sendMessage(jid, { image: { url: `${BASE_URL}/foggy-glass?text=${encodeURIComponent(query)}` }, caption: '🔮 *Glass Text*' }, { quoted: msg });
+                    break;
+                }
+
+                case 'balloon': {
+                    if (!query) return reply('❌ Provide text!');
+                    await sock.sendMessage(jid, { image: { url: `${BASE_URL}/foil-blallon?text=${encodeURIComponent(query)}` }, caption: '🎈 *Balloon Text*' }, { quoted: msg });
+                    break;
+                }
+
+                case 'glow': {
+                    if (!query) return reply('❌ Provide text!');
+                    await sock.sendMessage(jid, { image: { url: `${BASE_URL}/glow-chrome?text=${encodeURIComponent(query)}` }, caption: '✨ *Glow Text*' }, { quoted: msg });
                     break;
                 }
 
