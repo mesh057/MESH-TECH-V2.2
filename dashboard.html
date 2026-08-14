@@ -351,7 +351,8 @@
                 if (data.success) {
                     statusBox.className = 'status-box success';
                     statusBox.textContent = '✅ Session successfully restored and bot is connecting!';
-                    document.getElementById('botStatusBadge').textContent = '🟢 CONNECTED';
+                    // Start polling status immediately
+                    checkRealStatus();
                 } else {
                     throw new Error(data.error || 'Failed to restore session.');
                 }
@@ -363,6 +364,43 @@
                 btn.innerHTML = '<i class="fa-solid fa-rocket"></i> Deploy & Connect Bot';
             }
         }
+
+        async function checkRealStatus() {
+            const badge = document.getElementById('botStatusBadge');
+            const phoneNumber = document.getElementById('phoneNumber').value.trim();
+            if (!phoneNumber) return;
+
+            try {
+                const res = await fetch('/api/status');
+                const data = await res.json();
+                const myInstance = data.instances?.find(i => i.number === phoneNumber.replace(/\D/g, ''));
+                
+                if (myInstance) {
+                    if (myInstance.online) {
+                        badge.textContent = '🟢 ONLINE';
+                        badge.style.background = 'rgba(0, 255, 0, 0.1)';
+                        badge.style.color = '#00ff00';
+                    } else {
+                        badge.textContent = '🟡 CONNECTING...';
+                        badge.style.background = 'rgba(255, 255, 0, 0.1)';
+                        badge.style.color = '#ffff00';
+                    }
+                } else {
+                    badge.textContent = '🔴 INACTIVE / LOGGED OUT';
+                    badge.style.background = 'rgba(255, 0, 0, 0.1)';
+                    badge.style.color = '#ff0000';
+                }
+            } catch (e) {
+                console.error('Status check failed', e);
+            }
+        }
+
+        // Poll every 5 seconds if a number is entered
+        setInterval(() => {
+            if (document.getElementById('phoneNumber').value.trim()) {
+                checkRealStatus();
+            }
+        }, 5000);
     </script>
 </body>
 </html>

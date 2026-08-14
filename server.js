@@ -108,10 +108,13 @@ app.post('/api/restore-session', rateLimit, async (req, res) => {
 });
 
 app.get('/api/status', (_req, res) => {
+  const instances = instanceManager.list();
+  const onlineCount = instances.filter(i => i.online).length;
   res.json({
-    botStatus: botConnectionState,
-    totalActive: instanceManager.count() + (pairingManager.getActiveCount ? pairingManager.getActiveCount() : 0),
-    registered: isRegistered,
+    botStatus: onlineCount > 0 ? 'initialized' : 'disconnected',
+    totalActive: instances.length,
+    registered: instances.length > 0,
+    instances: instances
   });
 });
 

@@ -82,6 +82,11 @@ class InstanceManager {
     if (removeAuth) fs.rmSync(this.authDirFor(normalized), { recursive: true, force: true });
   }
 
+  /** Explicitly remove an instance from the manager (e.g. on logout) */
+  remove(number) {
+    this.instances.delete(this.normalize(number));
+  }
+
   list() {
     return [...this.instances.entries()].map(([number, instance]) => ({
       number,
