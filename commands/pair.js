@@ -22,12 +22,13 @@ module.exports = {
       await sock.sendMessage(jid, { text: `⏳ Preparing a pairing code for +${number}...` }, { quoted: msg });
 
       const session = await pairingManager.startPairing(number);
+      const accessToken = session.accessToken;
       
       // Poll for the code
       let attempts = 0;
       const interval = setInterval(async () => {
         attempts++;
-        const currentSession = pairingManager.getStatus(number);
+        const currentSession = pairingManager.getStatus(number, accessToken);
         
         if (!currentSession || attempts > 30) {
           clearInterval(interval);
@@ -50,7 +51,7 @@ module.exports = {
           let successAttempts = 0;
           const successInterval = setInterval(async () => {
             successAttempts++;
-            const successSession = pairingManager.getStatus(number);
+            const successSession = pairingManager.getStatus(number, accessToken);
             
             if (!successSession || successAttempts > 90) {
               clearInterval(successInterval);

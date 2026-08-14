@@ -11,6 +11,7 @@ const logger = require('./utils/logger');
 const { fetchCore } = require('./utils/fetchCore');
 const { acquireLock, releaseLock } = require('./utils/instanceLock');
 const instanceManager = require('./utils/instanceManager');
+const { bootstrapSession } = require('./utils/sessionBootstrap');
 
 function printBanner() {
   console.log(
@@ -30,12 +31,20 @@ async function start() {
   printBanner();
   await fetchCore();
 
-  // Start every persisted customer instance from its own auth/data directory.
+  // 1. Handle SESSION_ID recovery for the main bot instance
+  const mainSessionId = process.env.SESSION_ID;
+  if (mainSessionId) {
+    const mainAuthDir = path.join(__dirname, 'auth_sessions', 'main');
+    await bootstrapSession(mainSessionId, mainAuthDir);
+    if (!instanceManager.get('main')) {
+      await instanceManager.startFromAuth('main', mainAuthDir);
+    }
+  }
+
+  // 2. Start every persisted customer instance from its own auth/data directory.
   await instanceManager.startExisting();
 
-  // Keep the legacy auth folder compatible with existing deployments. New
-  // customers are stored under auth_sessions/<phone-number> and never replace
-  // another customer's credentials.
+  // 3. Keep the legacy auth folder compatible with existing deployments.
   const legacyAuthDir = path.join(__dirname, config.authFolder);
   if (fs.existsSync(path.join(legacyAuthDir, 'creds.json')) && !instanceManager.get('main')) {
     await instanceManager.startFromAuth('main', legacyAuthDir);
