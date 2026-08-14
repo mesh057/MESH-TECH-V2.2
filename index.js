@@ -9,7 +9,7 @@ const chalk = require('chalk');
 const config = require('./config/config');
 const logger = require('./utils/logger');
 const { fetchCore } = require('./utils/fetchCore');
-const { acquireLock } = require('./utils/instanceLock');
+const { acquireLock, releaseLock } = require('./utils/instanceLock');
 const instanceManager = require('./utils/instanceManager');
 
 // Prevent two instances running at the same time
@@ -59,3 +59,17 @@ process.on('unhandledRejection', (reason) => {
 
 const startupDelay = parseInt(process.env.MESH_TECH_RESTART_DELAY_MS || '0', 10);
 setTimeout(start, startupDelay);
+
+// ✅ Graceful Shutdown for Railway / Docker
+async function shutdown(signal) {
+  console.log(`[System] Received ${signal}. Shutting down gracefully...`);
+  try {
+    await instanceManager.stopAll();
+  } catch (e) {}
+  releaseLock();
+  console.log('[System] Shutdown complete.');
+  process.exit(0);
+}
+
+process.on('SIGTERM', () => shutdown('SIGTERM'));
+process.on('SIGINT', () => shutdown('SIGINT'));

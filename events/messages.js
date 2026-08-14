@@ -134,6 +134,19 @@ function registerMessageHandler(sock, commands, resources) {
     }
   });
 
+  sock.ev.on('messages.reaction', async (reactions) => {
+    try {
+      for (const reaction of reactions) {
+        const helpCmd = resources.commands?.get('help');
+        if (helpCmd && typeof helpCmd.handleHelpReaction === 'function') {
+          await helpCmd.handleHelpReaction(sock, reaction, resources);
+        }
+      }
+    } catch (e) {
+      logger.error?.(`[MessageHandler] Reaction handler error: ${e.message}`);
+    }
+  });
+
   sock.ev.on('messages.upsert', async ({ messages, type }) => {
     if (type !== 'notify' && type !== 'append') return;
 
