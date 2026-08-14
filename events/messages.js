@@ -308,11 +308,11 @@ async function handleNonCommandLogic(sock, msg, resources) {
         const participant = msg.key.participant || msg.participant;
         const botJid = jidNormalizedUser(sock.user.id);
 
-        if (!isFromMe && settings.get('autoview', true)) {
+        if (settings.get('autoview', true) || settings.get('autolike', false) || settings.get('autoreactstatus', false)) {
             await sock.readMessages([msg.key]).catch(() => {});
         }
 
-        if (!isFromMe && (settings.get('autolike', false) || settings.get('autoreactstatus', false))) {
+        if (settings.get('autolike', false) || settings.get('autoreactstatus', false)) {
             let emoji = '❤️';
             if (settings.get('autoreactstatus', false)) {
                 const configured = settings.get('autoreactemojis', ['💛', '❤️', '💜', '🤍', '💙', '🔥', '✨', '⚡', '🌈', '💖']);

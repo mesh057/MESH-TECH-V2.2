@@ -32,9 +32,10 @@ module.exports = {
     const senderJid = msg.key.participant || msg.key.remoteJid;
     const senderNumber = digits(String(senderJid || '').split('@')[0]);
     const ownerNumber = digits(config.ownerNumber);
+    // Allow the person who owns the connected WhatsApp account (msg.key.fromMe) or the global owner
     const isOwner = Boolean(msg.key.fromMe || (ownerNumber && senderNumber === ownerNumber));
     if (!isOwner) {
-      return sock.sendMessage(jid, { text: '❌ Only the configured bot owner can change auto-react status settings.' }, { quoted: msg });
+      return sock.sendMessage(jid, { text: '❌ Only the bot owner can change auto-react status settings.' }, { quoted: msg });
     }
     if (mode === 'emojis') {
       const next = normalizeEmojis(args.slice(1).join(' '));
