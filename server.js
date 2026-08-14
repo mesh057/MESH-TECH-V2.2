@@ -71,16 +71,36 @@ app.post('/api/restore-session', rateLimit, async (req, res) => {
       }
     }
 
-    try {
-      const parsed = JSON.parse(rawJson);
-      for (const [fileName, content] of Object.entries(parsed)) {
-        fs.writeFileSync(path.join(authDir, fileName), typeof content === 'string' ? content : JSON.stringify(content, null, 2));
-      }
-    } catch (e) {
-      fs.writeFileSync(path.join(authDir, 'creds.json'), rawJson);
-    }
+    // If instance exists, we must stop it first and use its own adoption logic
+    const existing = instanceManager.get(phoneNumber);
+    if (existing) {
+        // Create a temporary directory for the new credentials
+        const tmpAuthDir = path.join(__dirname, 'tmp', `restore_${phoneNumber}_${Date.now()}`);
+        fs.mkdirSync(tmpAuthDir, { recursive: true });
+        
+        try {
+            const parsed = JSON.parse(rawJson);
+            for (const [fileName, content] of Object.entries(parsed)) {
+                fs.writeFileSync(path.join(tmpAuthDir, fileName), typeof content === 'string' ? content : JSON.stringify(content, null, 2));
+            }
+        } catch (e) {
+            fs.writeFileSync(path.join(tmpAuthDir, 'creds.json'), rawJson);
+        }
 
-    await instanceManager.startFromAuth(phoneNumber, authDir);
+        await existing.adoptPairingSession(tmpAuthDir);
+        fs.rmSync(tmpAuthDir, { recursive: true, force: true });
+    } else {
+        // No existing instance, write directly and start
+        try {
+            const parsed = JSON.parse(rawJson);
+            for (const [fileName, content] of Object.entries(parsed)) {
+                fs.writeFileSync(path.join(authDir, fileName), typeof content === 'string' ? content : JSON.stringify(content, null, 2));
+            }
+        } catch (e) {
+            fs.writeFileSync(path.join(authDir, 'creds.json'), rawJson);
+        }
+        await instanceManager.startFromAuth(phoneNumber, authDir);
+    }
     res.json({ success: true, message: 'Session restored successfully!', phoneNumber });
   } catch (error) {
     res.status(400).json({ success: false, error: error.message });
