@@ -53,9 +53,12 @@ class PresenceManager {
     const presence = mode === 'typing' ? 'composing' : 'recording';
     try {
       await this.sock.sendPresenceUpdate(presence, jid);
+      // Stay in that state for 4 seconds to look real
       setTimeout(() => {
-        this.sock?.sendPresenceUpdate('paused', jid).catch(() => {});
-      }, 1200).unref?.();
+        if (this.sock) {
+          this.sock.sendPresenceUpdate('paused', jid).catch(() => {});
+        }
+      }, 4000).unref?.();
     } catch (error) {
       this.logger?.debug?.(`[presence] Failed to publish ${presence}: ${error.message}`);
     }
