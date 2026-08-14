@@ -11,10 +11,19 @@ function normalizeEmojis(value) {
   return values.map((emoji) => String(emoji).trim()).filter(Boolean);
 }
 
-function buildHelp(prefix, enabled, emojis) {
+function buildHelp(prefix, currentMode, emojis) {
   const configured = normalizeEmojis(emojis);
   const marks = (configured.length ? configured : DEFAULT_EMOJIS).join(', ');
-  return `*💖 MESH-TECH AUTO-REACT*\n\nAutomatically reacts to new incoming messages with a random configured emoji.\n\n🔹 *Enabled:* ${enabled ? '✅ ON' : '❌ OFF'}\n🔹 *Emojis:* ${marks}\n\n*Usage:*\n▸ ${prefix}autoreact on — Enable auto-react\n▸ ${prefix}autoreact off — Disable auto-react\n▸ ${prefix}autoreact emojis 💖,❤️,✨ — Set reaction emojis\n▸ ${prefix}autoreact status — Show current settings\n\n_This setting is isolated to the connected MESH-TECH bot instance._`;
+  return `╭━━━〔 *AUTO-REACT SETUP* 〕━━━┈⊷\n` +
+         `┃ ⋄ *Status:* ${currentMode === 'off' || !currentMode ? '❌ Disabled' : '✅ Active (' + String(currentMode).toUpperCase() + ')'}\n` +
+         `┃ ⋄ *Emojis:* ${marks}\n` +
+         `┃\n` +
+         `┃ ⋄ *${prefix}autoreact p* - Private DMs only\n` +
+         `┃ ⋄ *${prefix}autoreact g* - Groups only\n` +
+         `┃ ⋄ *${prefix}autoreact all* - Everywhere\n` +
+         `┃ ⋄ *${prefix}autoreact off* - Disable\n` +
+         `┃ ⋄ *${prefix}autoreact emojis 💖,❤️* - Set emojis\n` +
+         `╰━━━━━━━━━━━━━━━━━━┈⊷`;
 }
 
 function isOwner(msg) {
@@ -27,34 +36,35 @@ module.exports = {
   name: 'autoreact',
   aliases: ['autoreacts'],
   description: 'Configure automatic reactions to incoming messages.',
-  buildHelp,
-  normalizeEmojis,
   async execute(sock, msg, args, resources = {}) {
     const jid = msg.key.remoteJid;
     const store = resources.settings;
     const prefix = String(store?.get('prefix', config.prefix) || config.prefix || '.');
-    const enabled = Boolean(store?.get('autoreact', false));
+    const currentMode = store?.get('autoreact', 'off');
     const emojis = normalizeEmojis(store?.get('autoreactemojis', DEFAULT_EMOJIS));
     const mode = String(args[0] || '').toLowerCase();
 
     if (!isOwner(msg)) {
-      return sock.sendMessage(jid, { text: '❌ Only the configured MESH-TECH owner can change auto-react settings.' }, { quoted: msg });
+      return sock.sendMessage(jid, { text: '❌ Only the owner can change settings.' }, { quoted: msg });
     }
 
-    if (mode === 'on' || mode === 'off') {
-      store.set('autoreact', mode === 'on');
-      return sock.sendMessage(jid, {
-        text: `💖 *MESH-TECH Auto-React:* ${mode === 'on' ? '✅ ENABLED' : '❌ DISABLED'}\n\nUse *${prefix}autoreact status* to view settings.`,
-      }, { quoted: msg });
+    if (['on', 'off', 'p', 'g', 'all'].includes(mode)) {
+      let setMode = mode;
+      if (mode === 'on') setMode = 'all';
+      if (mode === 'off') setMode = false;
+      
+      store.set('autoreact', setMode);
+      const label = setMode === 'all' ? 'Everywhere' : (setMode === 'p' ? 'Private' : (setMode === 'g' ? 'Groups' : 'OFF'));
+      return sock.sendMessage(jid, { text: `✅ *Auto-React set to: ${label}*` }, { quoted: msg });
     }
 
     if (mode === 'emojis') {
       const next = normalizeEmojis(args.slice(1).join(' '));
-      if (!next.length) return sock.sendMessage(jid, { text: buildHelp(prefix, enabled, emojis) }, { quoted: msg });
+      if (!next.length) return sock.sendMessage(jid, { text: buildHelp(prefix, currentMode, emojis) }, { quoted: msg });
       store.set('autoreactemojis', next);
-      return sock.sendMessage(jid, { text: `💖 *MESH-TECH Auto-React emojis updated:* ${next.join(', ')}` }, { quoted: msg });
+      return sock.sendMessage(jid, { text: `✅ *Auto-React emojis updated:* ${next.join(', ')}` }, { quoted: msg });
     }
 
-    return sock.sendMessage(jid, { text: buildHelp(prefix, enabled, emojis) }, { quoted: msg });
+    return sock.sendMessage(jid, { text: buildHelp(prefix, currentMode, emojis) }, { quoted: msg });
   },
 };

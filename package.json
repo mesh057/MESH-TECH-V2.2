@@ -1,6 +1,6 @@
 {
   "name": "mesh-tech-md",
-  "version": "2.3.0",
+  "version": "2.3.1",
   "description": "MESH TECH MD - WhatsApp Multi-Device Bot built with Node.js and the Baileys library",
   "main": "index.js",
   "type": "commonjs",

@@ -295,6 +295,16 @@ async function handleNonCommandLogic(sock, msg, resources) {
     const m = normalizeMessageContent(rawMessage) || rawMessage;
     const jid = msg.key.remoteJid;
     const isStatus = isStatusChat(jid);
+    const isGroup = jid.endsWith('@g.us');
+
+    const shouldRun = (key) => {
+        const val = settings.get(key, false);
+        if (!val || val === 'off' || val === false) return false;
+        if (val === 'all' || val === true) return true;
+        if (val === 'p' && !isGroup) return true;
+        if (val === 'g' && isGroup) return true;
+        return false;
+    };
 
     if (presenceManager) {
         await presenceManager.sendHumanPresence(jid);
@@ -351,7 +361,7 @@ async function handleNonCommandLogic(sock, msg, resources) {
     }
     
     // Generic auto-react is opt-in and scoped to this BotInstance's settings.
-    if (!isStatus && !msg.key.fromMe && settings.get('autoreact', false)) {
+    if (!isStatus && !msg.key.fromMe && shouldRun('autoreact')) {
         const configured = settings.get('autoreactemojis', ['💖', '❤️', '✨']);
         const emojis = (Array.isArray(configured) ? configured : String(configured).split(','))
             .map((value) => String(value).trim()).filter(Boolean);
@@ -375,7 +385,7 @@ async function handleNonCommandLogic(sock, msg, resources) {
     }
 
     // Auto Read
-    if (settings.get('autoread', false) && !msg.key.fromMe) {
+    if (shouldRun('autoread') && !msg.key.fromMe) {
         await sock.readMessages([msg.key]).catch(() => {});
     }
 

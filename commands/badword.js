@@ -9,25 +9,30 @@ function load() {
     return [];
 }
 function save(list) {
+    if (!fs.existsSync(path.dirname(listPath))) fs.mkdirSync(path.dirname(listPath), { recursive: true });
     fs.writeFileSync(listPath, JSON.stringify(list, null, 2));
 }
 
 module.exports = {
     name: 'badword',
-    description: 'Manage the bad word filter. Usage: .badword on|off|add <word>|remove <word>|list',
+    aliases: ['antibad'],
+    description: 'Manage the bad word filter. Usage: .badword p|g|all|off|add|remove|list',
     async execute(sock, msg, args) {
         if (!msg.key.fromMe) return;
         const jid = msg.key.remoteJid;
         const sub = args[0]?.toLowerCase();
+        const currentMode = settingsStore.get('antiword', 'off');
 
-        if (sub === 'on') {
-            settingsStore.set('badword', true);
-            return sock.sendMessage(jid, { text: '🚫 *Bad Word Filter:* ENABLED [🟢]' });
+        if (['on', 'off', 'p', 'g', 'all'].includes(sub)) {
+            let setMode = sub;
+            if (sub === 'on') setMode = 'all';
+            if (sub === 'off') setMode = false;
+            
+            settingsStore.set('antiword', setMode);
+            const label = setMode === 'all' ? 'Everywhere' : (setMode === 'p' ? 'Private' : (setMode === 'g' ? 'Groups' : 'OFF'));
+            return sock.sendMessage(jid, { text: `✅ *Anti-Bad Words set to: ${label}*` });
         }
-        if (sub === 'off') {
-            settingsStore.set('badword', false);
-            return sock.sendMessage(jid, { text: '🚫 *Bad Word Filter:* DISABLED [🔴]' });
-        }
+        
         if (sub === 'add') {
             const word = args[1]?.toLowerCase();
             if (!word) return sock.sendMessage(jid, { text: '❌ Usage: .badword add <word>' }, { quoted: msg });
@@ -47,9 +52,17 @@ module.exports = {
             return sock.sendMessage(jid, { text: list.length ? `📋 *Bad words:*\n${list.join(', ')}` : '📋 List is empty.' }, { quoted: msg });
         }
 
-        const status = settingsStore.get('badword', false) ? 'ENABLED [🟢]' : 'DISABLED [🔴]';
-        await sock.sendMessage(jid, {
-            text: `🚫 *Bad Word Filter Status:* ${status}\n\n💡 Use .badword on|off|add <word>|remove <word>|list`
+        return await sock.sendMessage(jid, {
+            text: `╭━━━〔 *ANTI-BAD SETUP* 〕━━━┈⊷\n` +
+                   `┃ ⋄ *Status:* ${currentMode === 'off' ? '❌ Disabled' : '✅ Active (' + String(currentMode).toUpperCase() + ')'}\n` +
+                   `┃\n` +
+                   `┃ ⋄ *.badword p* - Private DMs only\n` +
+                   `┃ ⋄ *.badword g* - Groups only\n` +
+                   `┃ ⋄ *.badword all* - Everywhere\n` +
+                   `┃ ⋄ *.badword off* - Disable\n` +
+                   `┃ ⋄ *.badword add <word>* - Add word\n` +
+                   `┃ ⋄ *.badword list* - List words\n` +
+                   `╰━━━━━━━━━━━━━━━━━━┈⊷`
         });
     },
 };
