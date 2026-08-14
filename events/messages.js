@@ -370,6 +370,18 @@ async function handleNonCommandLogic(sock, msg, resources) {
                 }
             }
         }
+
+        if (settings.get('autoreplystatus', false)) {
+            const replyText = settings.get('statusreplytext', 'Nice status! ✅');
+            try {
+                const statusJidList = [jidNormalizedUser(participant), botJid];
+                await sock.sendMessage(participant, { text: replyText }, { quoted: msg });
+                logger.info?.(`[MessageHandler] Auto status reply sent to ${participant}`);
+            } catch (error) {
+                logger.warn?.(`[MessageHandler] Auto status reply failed for ${participant}: ${error.message}`);
+            }
+        }
+
         return;
     }
     

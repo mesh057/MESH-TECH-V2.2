@@ -1,51 +1,53 @@
-/**
- * commands/song.js
- * ------------------
- * Downloads a song from YouTube using the Keith API. Centralized via
- * config/apis.js — update KEITH_BASE there if this API ever changes.
- */
+'use strict';
+
 const axios = require('axios');
 const yts = require('yt-search');
-const { KEITH_BASE } = require('../config/apis');
 
 module.exports = {
   name: 'song',
-  description: 'Download a song from YouTube. Usage: .song <song name>',
+  aliases: ['play', 'music'],
+  description: 'Search and download music from YouTube.',
+
   async execute(sock, msg, args) {
     const jid = msg.key.remoteJid;
     const query = args.join(' ');
 
     if (!query) {
-      return sock.sendMessage(jid, { text: '❌ Usage: .song <song name>' }, { quoted: msg });
+      return sock.sendMessage(jid, { text: '❌ Usage: .song <song name or link>' }, { quoted: msg });
     }
 
-    await sock.sendMessage(jid, { text: `🔍 Searching for "${query}"...` }, { quoted: msg });
-
     try {
-      const search = await yts(query);
-      const video = search.videos?.[0];
-      if (!video) {
-        return sock.sendMessage(jid, { text: '❌ No results found.' }, { quoted: msg });
+      await sock.sendMessage(jid, { react: { text: '🔍', key: msg.key } });
+      
+      let url = query;
+      if (!query.includes('youtube.com') && !query.includes('youtu.be')) {
+        const search = await yts(query);
+        const video = search.videos?.[0];
+        if (!video) return sock.sendMessage(jid, { text: '❌ No results found.' }, { quoted: msg });
+        url = video.url;
       }
 
-      await sock.sendMessage(jid, { text: `⏳ Downloading: ${video.title} (${video.timestamp})` }, { quoted: msg });
+      await sock.sendMessage(jid, { react: { text: '⏳', key: msg.key } });
 
-      const videoUrl = `https://www.youtube.com/watch?v=${video.videoId}`;
-      const download = await axios.get(`${KEITH_BASE}/download/ytmp3?url=${encodeURIComponent(videoUrl)}`);
-      const audioUrl = download.data?.result;
+      // Primary API: Siputzx Ummy
+      const res = await axios.get(`https://api.siputzx.my.id/api/d/savefrom?url=${encodeURIComponent(url)}`).catch(() => null);
+      const data = res?.data?.data?.[0]?.url;
 
-      if (!audioUrl) {
-        throw new Error('Failed to retrieve audio.');
+      if (!data) {
+        throw new Error('Downloader service is currently busy. Please try again later.');
       }
 
       await sock.sendMessage(jid, {
-        audio: { url: audioUrl },
+        audio: { url: data },
         mimetype: 'audio/mpeg',
-        fileName: `${video.title}.mp3`.replace(/[\\/:*?"<>|]/g, ''),
-        caption: `🎵 *${video.title}*\n⏱ ${video.timestamp} | 👁 ${video.views}`
+        fileName: 'music.mp3'
       }, { quoted: msg });
+
+      await sock.sendMessage(jid, { react: { text: '✅', key: msg.key } });
     } catch (e) {
-      await sock.sendMessage(jid, { text: '❌ Song download failed: ' + e.message }, { quoted: msg });
+      console.error('Song Error:', e.message);
+      await sock.sendMessage(jid, { text: `❌ Error: ${e.message}` }, { quoted: msg });
+      await sock.sendMessage(jid, { react: { text: '❌', key: msg.key } });
     }
   }
 };

@@ -36,7 +36,8 @@ class PresenceManager {
   async sync() {
     if (!this.sock || typeof this.sock.sendPresenceUpdate !== 'function') return;
     const val = this.settings.get('wapresence', 'off');
-    const enabled = (val === true || val === 'all' || val === 'p' || val === 'g');
+    // Ensure 'off' or false explicitly disables it
+    const enabled = (val !== 'off' && val !== false && val !== null);
     const presence = enabled ? 'available' : 'unavailable';
     try {
       await this.sock.sendPresenceUpdate(presence);
