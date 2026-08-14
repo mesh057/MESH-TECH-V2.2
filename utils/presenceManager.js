@@ -45,10 +45,31 @@ class PresenceManager {
 
   async sendHumanPresence(jid) {
     if (!this.sock || !jid || jid === 'status@broadcast') return;
-    const configured = this.settings.get('fakepresence', 'off');
-    const mode = configured === 'off'
-      ? (process.env.AUTO_TYPING === 'true' ? 'typing' : process.env.AUTO_RECORDING === 'true' ? 'recording' : 'off')
-      : configured;
+    
+    const isGroup = jid.endsWith('@g.us');
+    const shouldRun = (val) => {
+      if (!val || val === 'off' || val === false) return false;
+      if (val === 'all' || val === true) return true;
+      if (val === 'p' && !isGroup) return true;
+      if (val === 'g' && isGroup) return true;
+      return false;
+    };
+
+    const autotyping = this.settings.get('autotyping', false);
+    const autorecording = this.settings.get('autorecording', false);
+    
+    let mode = 'off';
+    if (shouldRun(autorecording)) mode = 'recording';
+    else if (shouldRun(autotyping)) mode = 'typing';
+    
+    // Legacy/Env Fallback
+    if (mode === 'off') {
+      const legacy = this.settings.get('fakepresence', 'off');
+      if (legacy === 'typing' || legacy === 'recording') mode = legacy;
+      else if (process.env.AUTO_TYPING === 'true') mode = 'typing';
+      else if (process.env.AUTO_RECORDING === 'true') mode = 'recording';
+    }
+
     if (mode !== 'typing' && mode !== 'recording') return;
     const presence = mode === 'typing' ? 'composing' : 'recording';
     try {
