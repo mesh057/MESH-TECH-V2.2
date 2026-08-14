@@ -28,7 +28,7 @@ show_help() {
 case "$1" in
     start)
         echo "🚀 Starting $BOT_NAME..."
-        pm2 start index.js --name "$BOT_NAME" --watch --ignore-watch="node_modules sessions data tmp .git" || pm2 restart "$BOT_NAME"
+        pm2 start index.js --name "$BOT_NAME" || pm2 restart "$BOT_NAME"
         pm2 save
         ;;
     stop)
@@ -57,11 +57,15 @@ case "$1" in
         echo "📦 Updating dependencies..."
         npm install --no-audit --no-fund
         
-        # 3. Restart the bot (minimizes downtime)
+        # 3. Pre-emptive lock cleanup
+        echo "🧹 Cleaning up stale locks..."
+        rm -f auth_info_baileys/.instance.lock
+        
+        # 4. Restart the bot (minimizes downtime)
         echo "🚀 Restarting bot process..."
         pm2 restart "$BOT_NAME" || pm2 start index.js --name "$BOT_NAME"
         
-        # 4. Save state for server reboots
+        # 5. Save state for server reboots
         pm2 save
         
         echo "✅ Update complete! Bot is back online."

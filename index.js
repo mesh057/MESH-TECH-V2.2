@@ -12,9 +12,6 @@ const { fetchCore } = require('./utils/fetchCore');
 const { acquireLock, releaseLock } = require('./utils/instanceLock');
 const instanceManager = require('./utils/instanceManager');
 
-// Prevent two instances running at the same time
-acquireLock();
-
 function printBanner() {
   console.log(
     chalk.green(
@@ -29,6 +26,7 @@ function printBanner() {
 }
 
 async function start() {
+  await acquireLock();
   printBanner();
   await fetchCore();
 

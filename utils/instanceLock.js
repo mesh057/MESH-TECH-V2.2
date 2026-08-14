@@ -17,24 +17,37 @@ function isOurProcess(pid) {
     return false; // /proc unreadable — treat as not ours
   }
 }
-function acquireLock() {
+async function acquireLock() {
   fs.mkdirSync(path.dirname(lockFile), { recursive: true });
-  if (fs.existsSync(lockFile)) {
-    const oldPid = Number(fs.readFileSync(lockFile, 'utf8').trim());
-    if (oldPid === process.pid || !isOurProcess(oldPid)) {
-      // If PID matches us, or if the process at that PID isn't our bot, 
-      // the lock is stale. Railway/Docker often reuse PIDs.
-      console.warn(`[instanceLock] ⚠️ Stale lock (PID ${oldPid}). Replacing.`);
-      fs.unlinkSync(lockFile);
-    } else if (isOurProcess(oldPid)) {
-      console.error(`[instanceLock] ❌ Another MESH-TECH-MD instance is running (PID ${oldPid}). Exiting.`);
-      process.exit(1);
+  
+  const maxRetries = 5;
+  const retryDelay = 2000;
+
+  for (let i = 0; i < maxRetries; i++) {
+    if (fs.existsSync(lockFile)) {
+      const oldPid = Number(fs.readFileSync(lockFile, 'utf8').trim());
+      
+      if (oldPid === process.pid || !isOurProcess(oldPid)) {
+        console.warn(`[instanceLock] ⚠️ Stale lock (PID ${oldPid}). Replacing.`);
+        try { fs.unlinkSync(lockFile); } catch (e) {}
+        break;
+      } else if (isOurProcess(oldPid)) {
+        console.log(`[instanceLock] ⏳ Old instance (PID ${oldPid}) is still running... (Attempt ${i + 1}/${maxRetries})`);
+        await new Promise(resolve => setTimeout(resolve, retryDelay));
+      }
     } else {
-      // Stale or foreign PID — clean it up
-      console.warn(`[instanceLock] ⚠️ Stale lock (PID ${oldPid}). Replacing.`);
-      fs.unlinkSync(lockFile);
+      break;
     }
   }
+
+  if (fs.existsSync(lockFile)) {
+    const oldPid = Number(fs.readFileSync(lockFile, 'utf8').trim());
+    if (isOurProcess(oldPid) && oldPid !== process.pid) {
+      console.error(`[instanceLock] ❌ Another MESH-TECH-MD instance is still running (PID ${oldPid}). Exiting.`);
+      process.exit(1);
+    }
+  }
+
   fs.writeFileSync(lockFile, process.pid.toString());
   console.log(`[instanceLock] ✅ Lock acquired (PID ${process.pid})`);
 }
