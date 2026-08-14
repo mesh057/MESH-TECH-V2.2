@@ -11,6 +11,12 @@ const toBold = (text) => {
   return text.split('').map(c => boldChars[c] || c).join('');
 };
 
+const MARKERS = ['➊', '➋', '➌', '➍', '➎', '➏', '➐', '➑', '➒', '➓'];
+
+function numberedLine(index, command) {
+    return `║${MARKERS[index] || `${index + 1}.`} ⟿ .${command}`;
+}
+
 // Global session tracker for help pagination
 if (!global.helpSessions) global.helpSessions = new Map();
 
@@ -76,19 +82,19 @@ module.exports = {
 
     // Dynamic Pages for Categories
     for (const [catName, cmdList] of Object.entries(categories)) {
-      let catText = `╭━━━〔 ${toBold(catName + " MENU")} 〕━━━┈⊷\n`;
+      let catText = `╔═❖•⊰ ${catName} MENU ⊱•❖═╗\n`;
       const filtered = uniqueCommands.filter(c => 
         cmdList.some(keyword => c.name.toLowerCase().includes(keyword))
       );
       
       if (filtered.length === 0) {
-        catText += `┃ ⋄ No commands found in this category.\n`;
+        catText += `║⋄ No commands found.\n`;
       } else {
-        filtered.forEach(c => {
-          catText += `┃ • ${prefix}${c.name}\n`;
+        filtered.forEach((c, index) => {
+          catText += `${numberedLine(index, c.name)}\n`;
         });
       }
-      catText += `╰━━━━━━━━━━━━━━━━━━━━━━━━━━┈⊷`;
+      catText += `╚════════════════════╝`;
       pages.push(catText);
     }
 
