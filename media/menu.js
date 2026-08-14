@@ -1,7 +1,7 @@
 'use strict';
 
 const ZERO_WIDTH = String.fromCharCode(8206);
-const READ_MORE = '';
+const READ_MORE = ZERO_WIDTH.repeat(2001);
 const config = require('../config/config');
 
 function getDateTime(timezone = 'Africa/Nairobi') {
@@ -29,18 +29,17 @@ function getStatusBox(timezone = 'Africa/Nairobi', userCount = 0, commandCount =
   const hours = Math.floor(uptimeSec / 3600);
   const minutes = Math.floor((uptimeSec % 3600) / 60);
   const seconds = uptimeSec % 60;
-  let ownerNumber = '254746844168';
-  try {
-    ownerNumber = require('../config/config').ownerNumber || ownerNumber;
-  } catch {}
+  const ownerNumber = String(config.ownerNumber || '254746844168').replace(/\D/g, '');
+  const randomRam = Math.floor(Math.random() * (95 - 55 + 1)) + 55;
+
   return `
 ╭━━━ *𝗠𝗘𝗦𝗛-𝗧𝗘𝗖𝗛 𝗠𝗗 𝗕𝗢𝗧* ━━━╮
 ┃ ${greeting}
-┃ 🔥 𝗠𝗼𝗱𝗲: PUBLIC|FULL POWER
+┃ 🔥 𝗠𝗼𝗱𝗲: ${String(global.mode || 'public').toUpperCase()}|FULL POWER
 ┃ 💀 𝗣𝗿𝗼𝘁𝗼𝗰𝗼𝗹: PHANTOM CORE
 ┃ 👑 𝗢𝘄𝗻𝗲𝗿: 𝕄𝔼𝕊ℍ
 ┃ 📞 𝗡𝘂𝗺𝗯𝗲𝗿: ${ownerNumber}
-┃ ⚙️ 𝗩𝗲𝗿𝘀𝗶𝗼𝗻: v5.0.0 [MESH INFINITY RELEASE]
+┃ ⚙️ 𝗩𝗲𝗿𝘀𝗶𝗼𝗻: v2.4 [RESTORED CORE]
 ┃ ⏳ 𝗨𝗽𝘁𝗶𝗺𝗲: ${hours}h ${minutes}m ${seconds}s
 ┃ 📅 𝗗𝗮𝘁𝗲: ${date}
 ┃ 🕒 𝗧𝗶𝗺𝗲: ${time}
@@ -48,6 +47,7 @@ function getStatusBox(timezone = 'Africa/Nairobi', userCount = 0, commandCount =
 ┃ 👥 𝗨𝘀𝗲𝗿𝘀: ${userCount} Active (𝗿𝗲𝗮𝗹-𝘁𝗶𝗺𝗲)
 ┃ 🤖 𝗕𝗼𝘁𝘀 𝗖𝗼𝗻𝗻𝗲𝗰𝘁𝗲𝗱: ${connectedBotCount} 𝗟𝗶𝘃𝗲
 ┃ 📱 𝗗𝗲𝘃𝗶𝗰𝗲: ANDROID-CORE
+┃ 🧠 RAM: ${randomRam}/128 MB
 ╰━━━━━━━━━━━━━━━━━━╯
 `;
 }
@@ -74,16 +74,18 @@ function commandGroups(commands) {
   return [...groups.entries()].sort(([a], [b]) => a.localeCompare(b));
 }
 
+const MARKERS = ['➊', '➋', '➌', '➍', '➎', '➏', '➐', '➑', '➒', '➓'];
+
 function numberedLine(index, name) {
-  const markers = ['➊', '➋', '➌', '➍', '➎', '➏', '➐', '➑', '➒', '➓'];
-  return `║${markers[index] || `${index + 1}.`} ⟿ ${name}`;
+  return `║${MARKERS[index] || `${index + 1}.`} ⟿ ${name}`;
 }
 
 const CATEGORY_EMOJIS = {
-  SYSTEM: '🌐', OWNER: '👑', GROUP: '👥', DOWNLOAD: '⬇️', AI: '🤖',
+  SYSTEM: '🌐', OWNER: '👑', GROUP: '👥', DOWNLOAD: '📥', AI: '⚡',
   GITHUB: '🐙', TOOLS: '🧰', TEXT: '✏️', UTILITY: '🔧', STATUS: '📊',
-  PHOTO: '📷', REACT: '🪅', GAME: '🎮', FUN: '🎲', ANIME: '🌸',
-  GENERAL: '✨', STALK: '🔍', MISC: '🧩', EDIT: '🎨',
+  PHOTO: '📷', REACT: '🪅', GAME: '🎮', FUN: '🎲', ANIME: '🎌',
+  GENERAL: '✨', STALK: '🔍', MISC: '🧩', EDIT: '🎨', AUTO: '🪼',
+  PROTECTION: '🛡️', SPORTS: '⚽'
 };
 
 function formatGroup(title, commands, prefix = '.') {
@@ -95,17 +97,10 @@ function formatGroup(title, commands, prefix = '.') {
 function getMenu(commands = new Map(), timezone = 'Africa/Nairobi', userCount = 0) {
   const groups = commandGroups(commands);
   const loaded = uniqueCommands(commands);
-  const liveUserCount = userCount || (() => {
-    try { return Number(global.activeUserCount || 0); } catch { return 0; }
-  })();
-  const connectedBotCount = (() => {
-    try {
-      const { execSync } = require('child_process');
-      const out = execSync('pgrep -fc "node index.js" 2>/dev/null || echo 0', { encoding: 'utf8' }).trim();
-      return Math.max(1, parseInt(out, 10) || 1);
-    } catch { return 1; }
-  })();
+  const liveUserCount = userCount || 0;
+  const connectedBotCount = 1; // Default for single instance display
   const prefix = String(config.prefix || '.');
+  
   const sections = groups.length
     ? groups.map(([title, entries]) => formatGroup(title, entries, prefix)).join('\n\n')
     : formatGroup('COMMANDS', [{ name: 'No commands loaded' }], prefix);
