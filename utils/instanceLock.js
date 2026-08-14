@@ -21,12 +21,10 @@ function acquireLock() {
   fs.mkdirSync(path.dirname(lockFile), { recursive: true });
   if (fs.existsSync(lockFile)) {
     const oldPid = Number(fs.readFileSync(lockFile, 'utf8').trim());
-    if (oldPid === process.pid) {
-      // Container/host assigned us the SAME PID as the lock file from a
-      // previous boot (common on Pterodactyl/Docker — PID assignment is
-      // deterministic per container start). This can't be "another"
-      // instance since it's literally us — the lock is stale, not real.
-      console.warn(`[instanceLock] ⚠️ Lock PID (${oldPid}) matches our own PID — stale lock from a previous boot. Replacing.`);
+    if (oldPid === process.pid || !isOurProcess(oldPid)) {
+      // If PID matches us, or if the process at that PID isn't our bot, 
+      // the lock is stale. Railway/Docker often reuse PIDs.
+      console.warn(`[instanceLock] ⚠️ Stale lock (PID ${oldPid}). Replacing.`);
       fs.unlinkSync(lockFile);
     } else if (isOurProcess(oldPid)) {
       console.error(`[instanceLock] ❌ Another MESH-TECH-MD instance is running (PID ${oldPid}). Exiting.`);

@@ -95,6 +95,11 @@ app.get('/api/pairing-code', (req, res) => {
   });
 });
 
+// Explicit 405 handler for GET requests to the pairing API (as requested by support)
+app.get('/api/request-pairing', (req, res) => {
+  res.status(405).send('405 : Method not allowed');
+});
+
 app.get('/health', (_req, res) => res.json({ ok: true }));
 
 const server = app.listen(port, '0.0.0.0', () => {
