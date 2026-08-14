@@ -1,10 +1,27 @@
 'use strict';
 
-const { proto, downloadMediaMessage, normalizeMessageContent, isJidStatusBroadcast } = require('@whiskeysockets/baileys');
+const { proto, downloadMediaMessage, downloadContentFromMessage, normalizeMessageContent, isJidStatusBroadcast, jidNormalizedUser } = require('@whiskeysockets/baileys');
 const config = require('../config/config');
 const fs = require('fs');
+const { writeFile } = require('fs/promises');
 const path = require('path');
+const moment = require('moment-timezone');
 const { runWithContext } = require('../utils/context');
+
+const REPORT_TZ = config.timezone || 'Africa/Nairobi';
+const TEMP_MEDIA_DIR = path.join(__dirname, '../tmp');
+if (!fs.existsSync(TEMP_MEDIA_DIR)) {
+  fs.mkdirSync(TEMP_MEDIA_DIR, { recursive: true });
+}
+
+const toBold = (text) => {
+  const boldChars = {
+    'a': '𝗮', 'b': '𝗯', 'c': '𝗰', 'd': '𝗱', 'e': '𝗲', 'f': '𝗳', 'g': '𝗴', 'h': '𝗵', 'i': '𝗶', 'j': '𝗷', 'k': '𝗸', 'l': '𝗹', 'm': '𝗺', 'n': '𝗻', 'o': '𝗼', 'p': '𝗽', 'q': '𝗾', 'r': '𝗿', 's': '𝘀', 't': '𝘁', 'u': '𝘂', 'v': '𝘃', 'w': '𝘄', 'x': '𝗅', 'y': '𝘆', 'z': '𝘇',
+    'A': '𝗔', 'B': '𝗕', 'C': '𝗖', 'D': '𝗗', 'E': '𝗘', 'F': '𝗙', 'G': '𝗚', 'H': '𝗛', 'I': '𝗜', 'J': '𝗝', 'K': '𝗞', 'L': '𝗟', 'M': '𝗠', 'N': '𝗡', 'O': '𝗢', 'P': '𝗣', 'Q': '𝗤', 'R': '𝗥', 'S': '𝘀', 'T': '𝘁', 'U': '𝘂', 'V': '𝘃', 'W': '𝘄', 'X': '𝗅', 'Y': '𝘆', 'Z': '𝘇',
+    '0': '𝟬', '1': '𝟭', '2': '𝟮', '3': '𝟯', '4': '𝟰', '5': '𝟱', '6': '𝟲', '7': '𝟳', '8': '𝟴', '9': '𝟵'
+  };
+  return text.split('').map(c => boldChars[c] || c).join('');
+};
 const menuModule = require('../media/menu.js');
 const configOwner = config;
 const STATUS_REJECTION_COOLDOWN_MS = 15 * 60 * 1000;
@@ -45,23 +62,54 @@ async function recoverDeletedMessage(sock, key, resources) {
   const cached = messageCache.get(key.remoteJid, key.id);
   if (!cached) {
     await sock.sendMessage(destination, {
-      text: `🗑️ *Deleted message detected*\\n\\nMessage ID: ${key.id}\\nThe original content was not cached before deletion.`,
+      text: `🗑️ *Deleted message detected*\n\nMessage ID: ${key.id}\nThe original content was not cached before deletion.`,
     }).catch((error) => logger.warn?.(`[MessageHandler] Antidelete notice failed: ${error.message}`));
     return;
   }
 
-  const header = `🗑️ *Deleted message recovered*\\nFrom: ${cached.senderJid || key.participant || key.remoteJid}\\n\\n`;
   try {
-    if (cached.type === 'text') {
-      await sock.sendMessage(destination, { text: `${header}${cached.text || '[empty text]'}` });
-    } else if (typeof sock.copyNForward === 'function' && cached.originalMessage) {
-      await sock.sendMessage(destination, { text: header.trim() });
-      await sock.copyNForward(destination, cached.originalMessage, true);
-    } else if (cached.rawMessage) {
-      await sock.sendMessage(destination, cached.rawMessage);
-    } else {
-      await sock.sendMessage(destination, { text: `${header}[${cached.type || 'media'} content recovered]\\n${cached.text || ''}` });
+    const sender = cached.senderJid;
+    const senderName = sender.split('@')[0];
+    const nowStamp = () => moment().tz(REPORT_TZ).format('DD-MMM-YYYY hh:mm:ss A');
+    
+    let report = `╭━━━〔 ${toBold("ANTI-DELETE REPORT")} 〕━━━┈⊷\n` +
+                 `┃ 👤 ${toBold("Sender:")} @${senderName}\n` +
+                 `┃ 🕒 ${toBold("Sent At:")} ${cached.sentAtMs ? moment(cached.sentAtMs).tz(REPORT_TZ).format('DD-MMM-YYYY hh:mm:ss A') : 'Unknown'}\n` +
+                 `┃ 🗑️ ${toBold("Deleted/Detected At:")} ${nowStamp()}\n` +
+                 `┃ 📂 ${toBold("Type:")} ${cached.type || 'Text'}\n`;
+    
+    if (cached.groupJid) {
+        report += `┃ 👥 ${toBold("Group:")} ${cached.groupJid}\n`;
     }
+    
+    report += `╰━━━━━━━━━━━━━━━━━━┈⊷\n\n`;
+
+    if (cached.text) {
+        report += `📝 ${toBold("Message Content:")}\n${cached.text}`;
+    }
+
+    // Send report
+    await sock.sendMessage(destination, { text: report, mentions: [sender] });
+
+    // Send media if available
+    if (cached.mediaPath && fs.existsSync(cached.mediaPath)) {
+        const mediaOptions = { caption: `*Deleted ${cached.type}* from @${senderName}`, mentions: [sender] };
+        if (cached.type === 'image') await sock.sendMessage(destination, { image: { url: cached.mediaPath }, ...mediaOptions });
+        else if (cached.type === 'sticker') await sock.sendMessage(destination, { sticker: { url: cached.mediaPath }, ...mediaOptions });
+        else if (cached.type === 'video') await sock.sendMessage(destination, { video: { url: cached.mediaPath }, ...mediaOptions });
+        else if (cached.type === 'audio') await sock.sendMessage(destination, { audio: { url: cached.mediaPath }, mimetype: 'audio/mp4', ...mediaOptions });
+        
+        // Clean up after 5 seconds
+        setTimeout(() => {
+            try { if (fs.existsSync(cached.mediaPath)) fs.unlinkSync(cached.mediaPath); } catch (err) {}
+        }, 5000);
+    } else if (cached.type !== 'text' && cached.originalMessage) {
+        // Fallback to copyNForward if media download failed but we have the original object
+        if (typeof sock.copyNForward === 'function') {
+            await sock.copyNForward(destination, cached.originalMessage, true);
+        }
+    }
+
     logger.info?.(`[MessageHandler] Antidelete recovered ${key.id} to ${destination}`);
   } catch (error) {
     logger.warn?.(`[MessageHandler] Antidelete recovery failed for ${key.id}: ${error.message}`);
@@ -114,7 +162,7 @@ function registerMessageHandler(sock, commands, resources) {
 
         // Cache every incoming message, including commands, before dispatch so
         // a later revoke event can recover it for the owner inbox.
-        cacheMessageForAntidelete(messageCache, msg, logger);
+        await cacheMessageForAntidelete(messageCache, msg, logger);
 
         const senderJid = msg.key.participant || msg.key.remoteJid;
         const isMe = msg.key.fromMe;
@@ -170,26 +218,67 @@ function registerMessageHandler(sock, commands, resources) {
   });
 }
 
-function cacheMessageForAntidelete(messageCache, msg, logger) {
+async function cacheMessageForAntidelete(messageCache, msg, logger) {
     try {
         const jid = msg.key?.remoteJid;
         const id = msg.key?.id;
         if (!jid || !id || !msg.message) return;
+
+        // Don't cache protocol messages (like revokes themselves)
+        if (msg.message.protocolMessage) return;
+
         const m = normalizeMessageContent(msg.message) || msg.message;
         const senderJid = msg.key.participant || jid;
-        if (m.imageMessage) {
-            messageCache.set(jid, id, { type: 'image', text: m.imageMessage.caption || '', rawMessage: m, originalMessage: msg, senderJid });
-        } else if (m.videoMessage) {
-            messageCache.set(jid, id, { type: 'video', text: m.videoMessage.caption || '', rawMessage: m, originalMessage: msg, senderJid });
-        } else {
-            const mediaType = ['audioMessage', 'documentMessage', 'stickerMessage', 'contactMessage', 'locationMessage'].find((key) => m[key]);
-            const plainText = extractMessageText(m);
-            if (mediaType) {
-                messageCache.set(jid, id, { type: mediaType.replace('Message', ''), text: plainText, rawMessage: m, originalMessage: msg, senderJid });
-            } else if (plainText) {
-                messageCache.set(jid, id, { type: 'text', text: plainText, rawMessage: m, originalMessage: msg, senderJid });
+        const sentAtMs = msg.messageTimestamp ? Number(msg.messageTimestamp) * 1000 : Date.now();
+
+        const downloadMedia = async (msgContent, type, ext) => {
+            try {
+                const stream = await downloadContentFromMessage(msgContent, type);
+                let buffer = Buffer.from([]);
+                for await (const chunk of stream) {
+                    buffer = Buffer.concat([buffer, chunk]);
+                    if (buffer.length > 50 * 1024 * 1024) break; // 50MB limit
+                }
+                const p = path.join(TEMP_MEDIA_DIR, `${id}.${ext}`);
+                await writeFile(p, buffer);
+                return p;
+            } catch (e) {
+                logger.debug?.(`[MessageHandler] Antidelete download error (${type}): ${e.message}`);
+                return '';
             }
+        };
+
+        let mediaPath = '';
+        let type = 'text';
+        let text = extractMessageText(m);
+
+        if (m.imageMessage) {
+            type = 'image';
+            mediaPath = await downloadMedia(m.imageMessage, 'image', 'jpg');
+        } else if (m.videoMessage) {
+            type = 'video';
+            mediaPath = await downloadMedia(m.videoMessage, 'video', 'mp4');
+        } else if (m.stickerMessage) {
+            type = 'sticker';
+            mediaPath = await downloadMedia(m.stickerMessage, 'sticker', 'webp');
+        } else if (m.audioMessage) {
+            type = 'audio';
+            mediaPath = await downloadMedia(m.audioMessage, 'audio', 'mp3');
+        } else {
+            const mediaKey = ['documentMessage', 'contactMessage', 'locationMessage'].find((key) => m[key]);
+            if (mediaKey) type = mediaKey.replace('Message', '');
         }
+
+        messageCache.set(jid, id, {
+            type,
+            text,
+            mediaPath,
+            senderJid,
+            sentAtMs,
+            groupJid: jid.endsWith('@g.us') ? jid : null,
+            rawMessage: m,
+            originalMessage: msg
+        });
     } catch (error) {
         logger.debug?.(`[MessageHandler] Antidelete cache skipped: ${error.message}`);
     }
