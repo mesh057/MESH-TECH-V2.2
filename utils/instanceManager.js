@@ -90,7 +90,10 @@ class InstanceManager {
   list() {
     return [...this.instances.entries()].map(([number, instance]) => ({
       number,
-      online: Boolean(instance.isOnline),
+      online: instance.isOnline,
+      connecting: instance.connecting,
+      resetRequired: instance.sessionResetRequired,
+      attempts: instance.reconnectAttempts
     }));
   }
 

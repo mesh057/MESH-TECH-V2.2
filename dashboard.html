@@ -380,10 +380,19 @@
                         badge.textContent = '🟢 ONLINE';
                         badge.style.background = 'rgba(0, 255, 0, 0.1)';
                         badge.style.color = '#00ff00';
-                    } else {
-                        badge.textContent = '🟡 CONNECTING...';
+                    } else if (myInstance.resetRequired) {
+                        badge.textContent = '🔴 SESSION CORRUPTED';
+                        badge.style.background = 'rgba(255, 0, 0, 0.1)';
+                        badge.style.color = '#ff4444';
+                    } else if (myInstance.connecting) {
+                        const dots = '.'.repeat((Date.now() / 500) % 4);
+                        badge.textContent = '🟡 CONNECTING' + dots;
                         badge.style.background = 'rgba(255, 255, 0, 0.1)';
                         badge.style.color = '#ffff00';
+                    } else {
+                        badge.textContent = '🟠 RETRYING (Attempt ' + (myInstance.attempts || 0) + ')';
+                        badge.style.background = 'rgba(255, 165, 0, 0.1)';
+                        badge.style.color = '#ffa500';
                     }
                 } else {
                     badge.textContent = '🔴 INACTIVE / LOGGED OUT';
