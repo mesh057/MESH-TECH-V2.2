@@ -350,9 +350,14 @@
 
                 if (data.success) {
                     statusBox.className = 'status-box success';
-                    statusBox.textContent = '✅ Session successfully restored and bot is connecting!';
-                    // Start polling status immediately
+                    statusBox.textContent = '✅ Session successfully restored! Checking connection status...';
+                    // Trigger immediate check and faster polling for 30 seconds
                     checkRealStatus();
+                    let fastPollCount = 0;
+                    const fastPoll = setInterval(() => {
+                        checkRealStatus();
+                        if (++fastPollCount > 15) clearInterval(fastPoll);
+                    }, 2000);
                 } else {
                     throw new Error(data.error || 'Failed to restore session.');
                 }
@@ -404,12 +409,12 @@
             }
         }
 
-        // Poll every 5 seconds if a number is entered
+        // Poll every 3 seconds if a number is entered
         setInterval(() => {
             if (document.getElementById('phoneNumber').value.trim()) {
                 checkRealStatus();
             }
-        }, 5000);
+        }, 3000);
     </script>
 </body>
 </html>
