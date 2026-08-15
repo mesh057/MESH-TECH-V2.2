@@ -1,7 +1,7 @@
 'use strict';
 
-const ZERO_WIDTH = String.fromCharCode(8206);
-const READ_MORE = ZERO_WIDTH.repeat(2001);
+// Keep the menu text visible and searchable; do not hide commands with zero-width padding.
+const READ_MORE = '';
 const config = require('../config/config');
 
 function getDateTime(timezone = 'Africa/Nairobi') {

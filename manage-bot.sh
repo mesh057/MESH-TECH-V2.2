@@ -57,9 +57,13 @@ case "$1" in
         echo "📦 Updating dependencies..."
         npm install --no-audit --no-fund
         
-        # 3. Pre-emptive lock cleanup
-        echo "🧹 Cleaning up stale locks..."
-        rm -f auth_info_baileys/.instance.lock
+        # 3. Pre-emptive lock cleanup for every isolated tenant session.
+        # Never remove credentials; only clear stale instance locks.
+        echo "🧹 Cleaning up stale multi-session locks..."
+        AUTH_ROOT="${MULTI_USER_AUTH_DIR:-auth_sessions}"
+        if [ -d "$AUTH_ROOT" ]; then
+            find "$AUTH_ROOT" -mindepth 3 -maxdepth 3 -type f -name '.instance.lock' -delete
+        fi
         
         # 4. Restart the bot (minimizes downtime)
         echo "🚀 Restarting bot process..."

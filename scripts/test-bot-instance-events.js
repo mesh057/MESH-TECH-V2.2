@@ -103,7 +103,7 @@ async function main() {
     assert.match(initialWelcome, /> Type \*\.menu\*/);
     assert.match(initialWelcome, /Powered by MESH TECH/);
     assert.match(initialWelcome, /chat\.whatsapp\.com\/DM1JxxnOJFp0vsTHpej89M/);
-    assert.match(initialWelcome, /whatsapp\.com\/channel\/0029VbDeTrNEKyZ9GIUude2R/);
+    assert.match(initialWelcome, /whatsapp\.com\/channel\/0029VbDeTrNEKyZ9GlUude2R/);
     assert.doesNotMatch(initialWelcome, /Isaac/i);
     assert.equal(instance.sock.sentMessages[0].jid, '254700000099@s.whatsapp.net');
 
@@ -125,7 +125,7 @@ async function main() {
     assert.match(adoptedWelcome, /Owner:\* @254700000099/);
     assert.match(adoptedWelcome, /Powered by MESH TECH/);
     assert.match(adoptedWelcome, /chat\.whatsapp\.com\/DM1JxxnOJFp0vsTHpej89M/);
-    assert.match(adoptedWelcome, /whatsapp\.com\/channel\/0029VbDeTrNEKyZ9GIUude2R/);
+    assert.match(adoptedWelcome, /whatsapp\.com\/channel\/0029VbDeTrNEKyZ9GlUude2R/);
     assert.doesNotMatch(adoptedWelcome, /Isaac/i);
     assert.equal(instance.sock.sentMessages[0].jid, '254700000099@s.whatsapp.net');
 
@@ -135,7 +135,8 @@ async function main() {
     });
     await new Promise((resolve) => setImmediate(resolve));
     assert.equal(instance.sessionResetRequired, true, 'Bad MAC must quarantine the corrupted session');
-    assert.equal(fs.existsSync(instance.authDir), false, 'corrupted auth files must be cleared');
+    assert.equal(fs.existsSync(path.join(instance.authDir, 'creds.json')), false, 'corrupted auth credentials must be cleared');
+    assert.equal(fs.existsSync(path.join(instance.authDir, 'data')), true, 'tenant data must survive auth quarantine');
 
     const freshSourceDir = path.join(baseDir, 'fresh-pairing-source');
     fs.mkdirSync(freshSourceDir, { recursive: true });

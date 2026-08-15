@@ -1,5 +1,4 @@
 const config = require('../config/config');
-
 const DEFAULT_EMOJIS = ['💖', '❤️', '✨'];
 
 function digits(value) {
@@ -26,9 +25,9 @@ function buildHelp(prefix, currentMode, emojis) {
          `╰━━━━━━━━━━━━━━━━━━┈⊷`;
 }
 
-function isOwner(msg) {
-  const sender = digits(msg?.key?.participant || msg?.key?.remoteJid);
-  const owner = digits(config.ownerNumber);
+function isOwner(msg, resources = {}) {
+  const sender = digits(msg?.key?.participantPn || msg?.key?.participantAlt || msg?.key?.participant || msg?.key?.remoteJidAlt || msg?.key?.remoteJid);
+  const owner = digits(resources.ownerNumber || config.ownerNumber);
   return Boolean(msg?.key?.fromMe || (owner && sender === owner));
 }
 
@@ -44,7 +43,7 @@ module.exports = {
     const emojis = normalizeEmojis(store?.get('autoreactemojis', DEFAULT_EMOJIS));
     const mode = String(args[0] || '').toLowerCase();
 
-    if (!isOwner(msg)) {
+    if (!isOwner(msg, resources)) {
       return sock.sendMessage(jid, { text: '❌ Only the owner can change settings.' }, { quoted: msg });
     }
 

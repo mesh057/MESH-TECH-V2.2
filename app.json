@@ -27,8 +27,18 @@
       "required": false
     },
     "SESSION_ID": {
-      "description": "Your WhatsApp session string, generated via the pairing terminal (QR CODE or PAIR CODE). Leave blank to pair on first boot.",
+      "description": "Optional legacy/bootstrap session string. Leave blank to pair tenant accounts through the multi-session pairing API.",
       "value": "",
+      "required": false
+    },
+    "MULTI_USER_AUTH_DIR": {
+      "description": "Persistent directory for isolated WhatsApp auth sessions, one subdirectory per normalized phone number.",
+      "value": "auth_sessions",
+      "required": false
+    },
+    "MAX_BOT_INSTANCES": {
+      "description": "Maximum number of concurrently running WhatsApp accounts in this deployment. Increase only with sufficient RAM/CPU.",
+      "value": "25",
       "required": false
     },
     "BOT_PREFIX": {

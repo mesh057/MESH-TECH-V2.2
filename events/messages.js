@@ -42,8 +42,10 @@ function isStatusChat(jid) {
   return value === 'status@broadcast' || isJidStatusBroadcast(value) || value.endsWith('@broadcast');
 }
 
-function ownerJid() {
-  const number = String(configOwner.ownerNumber || '').replace(/[^0-9]/g, '');
+function ownerJid(resources = {}) {
+  const context = require('../utils/context').getContext() || {};
+  const configuredOwner = resources.ownerNumber || context.ownerNumber || context.instanceNumber || configOwner.ownerNumber;
+  const number = String(configuredOwner || '').replace(/[^0-9]/g, '');
   return number ? `${number}@s.whatsapp.net` : null;
 }
 
@@ -53,7 +55,7 @@ async function recoverDeletedMessage(sock, key, resources) {
 
   const destination = settings.get('antideleteDest', 'p') === 'g'
     ? key.remoteJid
-    : ownerJid();
+    : ownerJid(resources);
   if (!destination) {
     logger.warn?.('[MessageHandler] Antidelete enabled but no owner number is configured');
     return;
@@ -350,7 +352,7 @@ async function handleNonCommandLogic(sock, msg, resources) {
                     logger.warn?.(`[MessageHandler] Auto status reaction skipped: missing status participant for ${msg.key.id || 'unknown'}`);
                     return;
                 }
-                const statusJidList = [jidNormalizedUser(participant), botJid];
+                const statusJidList = [jidNormalizedUser(participant)];
                 await sock.sendMessage('status@broadcast', { react: { text: emoji, key: msg.key } }, {
                     statusJidList,
                 });

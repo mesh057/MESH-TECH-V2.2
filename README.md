@@ -122,4 +122,22 @@ npm start
 
 The bot starts the WhatsApp connection and its pairing web server. Use the pairing page exposed by your hosting provider, or provide a previously saved `SESSION_ID`. The default HTTP port is `3000`; production hosts should inject their own `PORT` value.
 
+### Multi-session deployment
+
+V2.2 supports multiple independent WhatsApp accounts in one deployment. Each account is identified by its normalized phone number and receives its own `BotInstance`, authentication directory, settings store, group-settings store, owner context, presence manager, and reconnect lifecycle. Pairing one account does not replace another account’s credentials.
+
+The default runtime layout is:
+
+```text
+auth_sessions/<phone-number>/
+├── creds.json and Baileys key files
+└── data/
+    ├── settings.json
+    └── group-settings.json
+```
+
+Set `MULTI_USER_AUTH_DIR` to the path of a persistent writable directory and set `MAX_BOT_INSTANCES` to the number of accounts the deployment can support safely. On Railway, attach persistent storage or use another durable storage strategy before accepting multiple production sessions; otherwise a redeploy can remove the local authentication folders and require users to pair again. The current default limit is 25 active instances, but the practical limit depends on available RAM, CPU, network capacity, and WhatsApp session load.
+
+Other people who only want to **use** your bot do not need their own session ID. They can use the existing bot in public mode. A separate session ID is required only when a person wants to connect their own WhatsApp account as another bot instance.
+
 Commands that use media conversion or downloads may also require a working FFmpeg binary and valid provider/API credentials. A command can load correctly while still requiring its external service configuration at runtime; the bot reports the service error instead of treating a generic placeholder response as success.

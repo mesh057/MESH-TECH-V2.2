@@ -31,13 +31,16 @@ async function start() {
   printBanner();
   await fetchCore();
 
-  // 1. Handle SESSION_ID recovery for the main bot instance
+  // 1. Optional backward-compatible bootstrap session.
+  // For multi-session deployments, SESSION_OWNER_NUMBER scopes this session
+  // to its actual WhatsApp account instead of using the legacy "main" key.
   const mainSessionId = process.env.SESSION_ID;
   if (mainSessionId) {
-    const mainAuthDir = path.join(__dirname, 'auth_sessions', 'main');
+    const bootstrapNumber = String(process.env.SESSION_OWNER_NUMBER || 'main').replace(/\D/g, '') || 'main';
+    const mainAuthDir = path.join(__dirname, process.env.MULTI_USER_AUTH_DIR || 'auth_sessions', bootstrapNumber);
     await bootstrapSession(mainSessionId, mainAuthDir);
-    if (!instanceManager.get('main')) {
-      await instanceManager.startFromAuth('main', mainAuthDir);
+    if (!instanceManager.get(bootstrapNumber)) {
+      await instanceManager.startFromAuth(bootstrapNumber, mainAuthDir);
     }
   }
 

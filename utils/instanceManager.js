@@ -100,6 +100,13 @@ class InstanceManager {
   count() {
     return this.instances.size;
   }
+
+  async stopAll() {
+    const numbers = [...this.instances.keys()];
+    for (const number of numbers) {
+      await this.stop(number, false);
+    }
+  }
 }
 
 const configuredDir = process.env.MULTI_USER_AUTH_DIR || 'auth_sessions';
