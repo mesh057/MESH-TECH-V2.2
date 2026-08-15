@@ -136,7 +136,7 @@ auth_sessions/<phone-number>/
     └── group-settings.json
 ```
 
-Set `MULTI_USER_AUTH_DIR` to the path of a persistent writable directory and set `MAX_BOT_INSTANCES` to the number of accounts the deployment can support safely. On Railway, attach persistent storage or use another durable storage strategy before accepting multiple production sessions; otherwise a redeploy can remove the local authentication folders and require users to pair again. The current default limit is 25 active instances, but the practical limit depends on available RAM, CPU, network capacity, and WhatsApp session load.
+Set `MULTI_USER_AUTH_DIR` to the path of a persistent writable directory. `MAX_BOT_INSTANCES` accepts a number for a software guardrail or `unlimited` to remove the application-level cap. Unlimited mode does not mean infinite capacity: RAM, CPU, storage, network capacity, Railway quotas, and WhatsApp session stability still limit the practical number of accounts. On Railway, attach persistent storage or use another durable storage strategy before accepting multiple production sessions; otherwise a redeploy can remove the local authentication folders and require users to pair again. A numeric limit is recommended for production capacity control, while `unlimited` is appropriate only when external monitoring and host capacity controls are in place.
 
 Other people who only want to **use** your bot do not need their own session ID. They can use the existing bot in public mode. A separate session ID is required only when a person wants to connect their own WhatsApp account as another bot instance.
 

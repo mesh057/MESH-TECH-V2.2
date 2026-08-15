@@ -9,7 +9,11 @@ class InstanceManager {
   constructor(baseDir) {
     this.baseDir = baseDir;
     this.instances = new Map();
-    this.maxInstances = Math.max(1, Number(process.env.MAX_BOT_INSTANCES || 25));
+    const configuredLimit = String(process.env.MAX_BOT_INSTANCES ?? '25').trim().toLowerCase();
+    this.unlimited = ['unlimited', 'infinite', 'infinity', '0', '-1'].includes(configuredLimit);
+    this.maxInstances = this.unlimited
+      ? Infinity
+      : Math.max(1, Number(configuredLimit || 25));
     fs.mkdirSync(this.baseDir, { recursive: true });
   }
 
@@ -58,8 +62,8 @@ class InstanceManager {
       return existing;
     }
 
-    if (this.instances.size >= this.maxInstances) {
-      throw new Error('The service has reached its active bot limit. Please upgrade capacity or contact the administrator.');
+    if (!this.unlimited && this.instances.size >= this.maxInstances) {
+      throw new Error('The service has reached its active bot limit. Increase MAX_BOT_INSTANCES or set it to unlimited only when the host has enough capacity.');
     }
     fs.mkdirSync(targetDir, { recursive: true });
     for (const entry of fs.readdirSync(sourceDir)) {

@@ -37,8 +37,8 @@
       "required": false
     },
     "MAX_BOT_INSTANCES": {
-      "description": "Maximum number of concurrently running WhatsApp accounts in this deployment. Increase only with sufficient RAM/CPU.",
-      "value": "25",
+      "description": "Maximum concurrently running WhatsApp accounts. Use a number for a guardrail or 'unlimited' to remove the software cap; host resources still apply.",
+      "value": "unlimited",
       "required": false
     },
     "BOT_PREFIX": {
